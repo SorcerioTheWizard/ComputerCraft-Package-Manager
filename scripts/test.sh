@@ -35,6 +35,7 @@ timeout "$TIMEOUT_SECONDS" "$CRAFTOS" --headless \
     -d "$(native_path "$WORK_DIR/data")" \
     --mount-ro "/src=$(native_path "$REPO_ROOT/src")" \
     --mount-ro "/tests=$(native_path "$REPO_ROOT/tests")" \
+    --mount-ro "/repo=$(native_path "$REPO_ROOT")" \
     --mount-rw "/out=$(native_path "$WORK_DIR/out")" \
     --exec "shell.run('/tests/run.lua', '/out', '$FILTER') os.shutdown()" \
     >/dev/null 2>&1 || true
