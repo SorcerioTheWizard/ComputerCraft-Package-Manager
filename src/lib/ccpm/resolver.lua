@@ -34,6 +34,7 @@ local MAX_ATTEMPTS = 500
 ---@class Plan
 ---@field steps PlanStep[] Changes in dependency order, dependencies first.
 ---@field unchanged string[] Requested packages that were already installed at the version to use.
+---@field promote table<string, string>|nil Ranges of packages the user asked for by name, to mark as explicit when already installed.
 
 ---@class ResolveContext
 ---@field registries LoadedRegistry[] The registries in priority order.

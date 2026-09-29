@@ -20,7 +20,7 @@ The source tree mirrors where files are installed on a computer:
 
 - `src/bin/` is installed to `/ccpm/bin/`, which is added to the shell path.
 - `src/lib/` is installed to `/ccpm/lib/`, which is added to the `require` path. Modules are required as `ccpm.<module>`.
-- `src/startup/` is installed to `/startup/`.
+- `/startup/00_ccpm.lua` is not shipped as a file. `ccpm setup` generates it (see `src/lib/ccpm/setup.lua`), because packages may only install into `bin/`, `lib/<name>/`, and `share/<name>/`.
 - `install.lua` is the bootstrap installer. Its URL on `master` is public and must never move.
 - `types/` holds type stubs for the Lua language server. It is never installed; add ComputerCraft APIs there when the editor flags them as undefined.
 

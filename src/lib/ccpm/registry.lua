@@ -110,6 +110,24 @@ function registry.loadAll(refresh)
     return loaded
 end
 
+--- Lists the package names in the cached indexes without downloading anything, for tab completion.
+---@return string[] names The names, sorted and without duplicates.
+function registry.cachedNames()
+    local names, seen = {}, {}
+    for _, source in ipairs(config.load().registries) do
+        local index = files.readJSON(cachePath(source))
+        for name in pairs(type(index) == "table" and type(index.packages) == "table" and index.packages or {}) do
+            if not seen[name] then
+                seen[name] = true
+                names[#names + 1] = name
+            end
+        end
+    end
+    table.sort(names)
+
+    return names
+end
+
 --- Finds a package in the first registry that lists it.
 ---@param registries LoadedRegistry[] The registries in priority order.
 ---@param name string The package name.

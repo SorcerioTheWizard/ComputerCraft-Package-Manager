@@ -73,7 +73,16 @@ function manager.planInstall(specs, options)
         requests[#requests + 1] = { name = spec.name, range = spec.range, explicit = true }
     end
 
-    return resolver.resolve(context, requests)
+    -- Remember the requests so installed dependencies asked for by name become explicit
+    local plan, resolveErr = resolver.resolve(context, requests)
+    if plan then
+        plan.promote = {}
+        for _, spec in ipairs(specs) do
+            plan.promote[spec.name] = spec.range
+        end
+    end
+
+    return plan, resolveErr
 end
 
 --- Plans updating installed packages to the newest versions their ranges allow.
@@ -114,7 +123,22 @@ end
 ---@return string[]|nil removed Dependencies no longer needed and removed afterwards, or `nil` if the plan was not applied.
 ---@return string|nil err The error message if it was not applied.
 function manager.apply(plan, force)
-    return installer.apply(plan, force)
+    local removed, err = installer.apply(plan, force)
+    if not removed then
+        return nil, err
+    end
+
+    -- Mark installed dependencies the user asked for by name as explicit
+    for _, name in ipairs(plan.unchanged) do
+        local record = plan.promote and plan.promote[name] and state.get(name)
+        if record and not record.explicit then
+            record.explicit = true
+            record.range = plan.promote[name]
+            state.put(record)
+        end
+    end
+
+    return removed
 end
 
 --- Removes packages, and the dependencies nothing else needs afterwards.
