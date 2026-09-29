@@ -2,6 +2,8 @@
 
 > The package manager for ComputerCraft and ComputerCraft: Tweaked with Pinestore (and more) support.
 
+![A ComputerCraft computer installing CCPM with one command, searching for packages, installing one, running a program that installs the graphics library it needs and draws an animation, then listing what is installed.](repo/demo.gif)
+
 CCPM installs, updates, and removes programs and libraries on ComputerCraft computers, along with everything they depend on.
 
 * [Computer Craft Package Manager](#computer-craft-package-manager)
