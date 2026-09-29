@@ -10,9 +10,18 @@
 
 This project is a package manager for Minecraft's Computer Craft mod.
 
+### Lua
+
 Lua code is written here and executed in-game or on a ComputerCraft simulator like [CraftOS-PC](https://www.craftos-pc.cc) or [CCEmuX](https://emux.cc).
 
 Documentation for ComputerCraft: Tweaked is found [here](https://tweaked.cc).
+
+### Python
+
+Any Python used in this project is managed by `uv`.
+
+- Always run Python through `uv`, as in `uv run python ...` and `uv run pytest`. Never call a bare `python`, `pip`, or the `.venv` interpreter directly.
+- Add and remove dependencies with `uv add` and `uv remove`, never by editing `pyproject.toml` by hand.
 
 ## Code Style
 
