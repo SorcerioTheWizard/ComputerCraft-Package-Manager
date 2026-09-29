@@ -16,6 +16,24 @@ Lua code is written here and executed in-game or on a ComputerCraft simulator li
 
 Documentation for ComputerCraft: Tweaked is found [here](https://tweaked.cc).
 
+The source tree mirrors where files are installed on a computer:
+
+- `src/bin/` is installed to `/ccpm/bin/`, which is added to the shell path.
+- `src/lib/` is installed to `/ccpm/lib/`, which is added to the `require` path. Modules are required as `ccpm.<module>`.
+- `src/startup/` is installed to `/startup/`.
+- `install.lua` is the bootstrap installer. Its URL on `master` is public and must never move.
+
+The package registry lives in a separate repository, [CCPM-Registry](https://github.com/SorcerioTheWizard/CCPM-Registry).
+
+#### Testing
+
+Specs live in `tests/spec/` as `<name>_spec.lua` and run inside a throwaway headless CraftOS-PC computer.
+
+- Run them with `scripts/test.sh`, optionally passing a substring to filter spec file names.
+- Set `CRAFTOS` to the CraftOS-PC console executable when `craftos` is not on the `PATH` (on this machine: `D:\AppData\CraftOS-PC\CraftOS-PC_console.exe`).
+- Specs use the globals `describe`, `it`, `beforeEach`, `afterEach`, and `check` from `tests/harness.lua`.
+- Never let a spec touch the network. Use the fakes in `tests/support/`.
+
 ### Python
 
 Any Python used in this project is managed by `uv`.
@@ -34,6 +52,16 @@ Match existing style exactly:
 - Class body order: Properties, Initializer, Dunders, Private Functions, Functions.
 - No em dashes anywhere, in code, comments, docs, or output.
 - **Never** break a line mid-sentence in prose/docs/comments. One sentence stays on one line, word wrap handles width.
+
+### Lua
+
+The rules above apply to Lua with these translations:
+
+- Section headers are `-- MARK: Imports`, `-- MARK: Constants`, `-- MARK: Functions`, etc.
+- The module docstring is a `--` comment block at the top of the file: title line, blank `--` line, one-line description.
+- Function docs are LuaLS annotations: a `---` summary line, then `---@param name type Description.` and `---@return type name Description.` in place of Google Style `Args:` and `Returns:`.
+- Inline comments are `-- Stash the changes`.
+- Modules return a single table, declared right after `-- MARK: Functions`. Private helpers are `local function`s above it.
 
 ## Commits
 

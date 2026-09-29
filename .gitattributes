@@ -1,0 +1,2 @@
+# Keep LF everywhere so file hashes match what GitHub raw serves
+* text=auto eol=lf

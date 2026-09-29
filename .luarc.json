@@ -1,0 +1,32 @@
+{
+    "runtime.version": "Lua 5.2",
+    "workspace.library": ["src/lib", "tests"],
+    "diagnostics.globals": [
+        "_HOST",
+        "_CC_DEFAULT_SETTINGS",
+        "colors",
+        "colours",
+        "fs",
+        "http",
+        "keys",
+        "os",
+        "paintutils",
+        "parallel",
+        "peripheral",
+        "pocket",
+        "printError",
+        "read",
+        "settings",
+        "shell",
+        "sleep",
+        "term",
+        "textutils",
+        "turtle",
+        "write",
+        "describe",
+        "it",
+        "beforeEach",
+        "afterEach",
+        "check"
+    ]
+}

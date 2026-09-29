@@ -1,0 +1,22 @@
+name: Test
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  lua:
+    # The CraftOS-PC PPA publishes packages for this release
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install CraftOS-PC
+        run: |
+          sudo add-apt-repository -y ppa:jackmacwindows/ppa
+          sudo apt-get update
+          sudo apt-get install -y craftos-pc
+
+      - name: Run specs
+        run: scripts/test.sh
