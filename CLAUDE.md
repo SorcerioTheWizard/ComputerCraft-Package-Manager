@@ -24,6 +24,8 @@ The source tree mirrors where files are installed on a computer:
 - `/startup/00_ccpm.lua` is not shipped as a file. `ccpm setup` generates it (see `src/lib/ccpm/setup.lua`), because packages may only install into `bin/`, `lib/<name>/`, and `share/<name>/`.
 - `install.lua` is the bootstrap installer. Its URL on `master` is public and must never move.
 - `src/lib/ccpm/init.lua` is what programs get from `require("ccpm")`. It is a public API documented in the README: add to it freely, but never remove or change the behavior of existing functions. The bootstrap snippet in the README is public too and relies on `/ccpm/lib/ccpm/init.lua` existing.
+- Every other `ccpm.*` module is internal and may change at any time, even though programs could technically `require` it.
+- All output goes through `src/lib/ccpm/ui.lua`. Commands say what to show with roles (`name`, `text`, `dim`, `faint`, `good`, `bad`, `caution`), never raw colors, and never wrap text themselves. `ui.lua` knows nothing about packages, so it can become its own package later.
 - `types/` holds type stubs for the Lua language server. It is never installed; add ComputerCraft APIs there when the editor flags them as undefined.
 
 The package registry lives in a separate repository, [CCPM-Registry](https://github.com/SorcerioTheWizard/CCPM-Registry).

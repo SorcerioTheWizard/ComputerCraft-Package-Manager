@@ -139,10 +139,11 @@ function manager.apply(plan, force)
 
     -- Mark installed dependencies the user asked for by name as explicit
     for _, name in ipairs(plan.unchanged) do
-        local record = plan.promote and plan.promote[name] and state.get(name)
+        local range = plan.promote and plan.promote[name]
+        local record = range and state.get(name) or nil
         if record and not record.explicit then
             record.explicit = true
-            record.range = plan.promote[name]
+            record.range = range
             state.put(record)
         end
     end
@@ -165,47 +166,55 @@ function manager.confirmAndApply(plan, options)
     -- Report requests that are already satisfied
     for _, name in ipairs(plan.unchanged) do
         local record = state.get(name)
-        ui.muted(name .. " " .. (record and record.version or "") .. " is already installed.")
+        ui.line({ { name, "name" }, { " " .. (record and record.version or "") .. " is already installed.", "dim" } })
     end
 
     -- Apply quietly when nothing is downloaded
     if #plan.steps == 0 then
         manager.apply(plan, options.force)
         if #plan.unchanged == 0 and options.nothing then
-            ui.info(options.nothing)
+            ui.say(options.nothing)
         end
         return true
     end
 
-    -- Show what will change
-    ui.info(options.intro or DEFAULT_INTRO)
+    -- Show what will change, with a mark that reads without color
+    ui.say(options.intro or DEFAULT_INTRO)
+    local updates = 0
     for _, step in ipairs(plan.steps) do
         if step.previous then
-            ui.info("  ~ " .. step.name .. " " .. step.previous.version .. " -> " .. step.version)
+            updates = updates + 1
+            ui.line({ { "  ~ ", "caution" }, { step.name, "name" }, { " " .. step.previous.version .. " -> " .. step.version, "dim" } }, 4)
         else
-            ui.info("  + " .. step.name .. " " .. step.version .. (step.explicit and "" or " (dependency)"))
+            local segments = { { "  + ", "good" }, { step.name, "name" }, { " " .. step.version, "dim" } }
+            if not step.explicit then
+                segments[#segments + 1] = { " dependency", "faint" }
+            end
+            ui.line(segments, 4)
         end
+
+        -- Collect warnings, including code CCPM cannot check and files without a published hash
+        local warnings = {}
         for _, warning in ipairs(step.warnings) do
-            ui.warn("    ! " .. warning)
+            warnings[#warnings + 1] = warning
         end
-
-        -- Warn that installers run code CCPM cannot check or undo
         if step.manifest.kind == "installer" then
-            ui.warn("    ! runs `" .. step.manifest.installer.command .. "`, which CCPM cannot check, and the files it creates will not be tracked")
+            warnings[#warnings + 1] = "runs `" .. step.manifest.installer.command .. "`, which CCPM cannot check, and the files it creates will not be tracked"
         end
-
-        -- Warn about files downloaded live, like the source's own install command would
         for _, file in ipairs(step.manifest.files or {}) do
             if not file.sha256 then
-                ui.warn("    ! files are not verified against a published hash")
+                warnings[#warnings + 1] = "files are not verified against a published hash"
                 break
             end
+        end
+        for _, warning in ipairs(warnings) do
+            ui.line({ { "    ! " .. warning, "caution" } }, 6)
         end
     end
 
     -- Ask first
     if not options.yes and not ui.confirm("Continue?") then
-        ui.info("Cancelled.")
+        ui.note("Cancelled.")
         return false, "cancelled"
     end
 
@@ -215,9 +224,16 @@ function manager.confirmAndApply(plan, options)
         ui.error(err or "the changes could not be applied")
         return false, err
     end
-    ui.success("Done. " .. #plan.steps .. " package(s) changed.")
+    local count = #plan.steps .. (#plan.steps == 1 and " package." or " packages.")
+    if updates == 0 then
+        ui.success("Installed " .. count)
+    elseif updates == #plan.steps then
+        ui.success("Updated " .. count)
+    else
+        ui.success("Installed and updated " .. count)
+    end
     for _, name in ipairs(removed) do
-        ui.muted("Removed " .. name .. ", which nothing needs anymore.")
+        ui.note("Removed " .. name .. ", which nothing needs anymore.")
     end
 
     return true

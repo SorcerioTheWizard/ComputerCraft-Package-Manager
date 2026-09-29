@@ -20,7 +20,9 @@ local PROGRAM = "ccpm"
 local SELF_PACKAGE = "ccpm"
 local REGISTRY_NAME_PATTERN = "^[%w_%-]+$"
 local URL_PATTERN = "^https?://"
-local FIELD_WIDTH = 11
+
+-- Marks for `doctor` results, padded to the same width
+local REPORT_MARKS = { ok = { "ok  ", "good" }, warn = { "warn", "caution" }, fail = { "fail", "bad" } }
 
 -- Returned by a command whose arguments are wrong, so its usage is shown
 local USAGE = "usage"
@@ -56,11 +58,20 @@ local function newestAllowed(registries, record)
     return range:best(registry.versions(entry))
 end
 
---- Prints a labeled detail line, like `  Author:     Tester`.
+--- Builds a labeled detail row for `ui.table`, like `Author  Tester`.
 ---@param label string The label.
 ---@param value string The value.
-local function field(label, value)
-    ui.muted("  " .. label .. ":" .. string.rep(" ", FIELD_WIDTH - #label) .. value)
+---@param role Role|nil The value's role, defaulting to plain text.
+---@return Segment[] row The row.
+local function field(label, value, role)
+    return { { label, "dim" }, { value, role } }
+end
+
+--- Describes a count of packages, like `1 package` or `3 packages`.
+---@param count integer The count.
+---@return string text The description.
+local function packages(count)
+    return count .. (count == 1 and " package" or " packages")
 end
 
 --- Counts the keys of a table.
@@ -76,16 +87,10 @@ local function countKeys(map)
 end
 
 --- Prints one line of a `doctor` report.
----@param ok boolean|nil `true` for a pass, `false` for a failure, `nil` for a warning.
+---@param result "ok"|"warn"|"fail" The result.
 ---@param text string The line.
-local function report(ok, text)
-    if ok then
-        ui.success("[ok]   " .. text)
-    elseif ok == false then
-        ui.error("[fail] " .. text)
-    else
-        ui.warn("[warn] " .. text)
-    end
+local function report(result, text)
+    ui.line({ REPORT_MARKS[result], { "  " .. text } }, 6)
 end
 
 -- MARK: Commands
@@ -104,7 +109,7 @@ local COMMANDS = {}
 COMMANDS[#COMMANDS + 1] = {
     name = "install",
     usage = "<package>[@<range>] ...",
-    summary = "Install packages and their dependencies.",
+    summary = "Install packages and what they need.",
     flags = { "--force" },
     complete = "available",
     run = function(args, flags)
@@ -129,7 +134,7 @@ COMMANDS[#COMMANDS + 1] = {
 COMMANDS[#COMMANDS + 1] = {
     name = "remove",
     usage = "<package> ...",
-    summary = "Remove packages and dependencies nothing else needs.",
+    summary = "Remove packages and their leftovers.",
     flags = { "--cascade" },
     complete = "installed",
     run = function(args, flags)
@@ -146,7 +151,7 @@ COMMANDS[#COMMANDS + 1] = {
         end
 
         if not flags.yes and not ui.confirm("Remove " .. table.concat(args, ", ") .. "?") then
-            ui.info("Cancelled.")
+            ui.note("Cancelled.")
             return false
         end
 
@@ -167,7 +172,7 @@ COMMANDS[#COMMANDS + 1] = {
 COMMANDS[#COMMANDS + 1] = {
     name = "update",
     usage = "[<package> ...]",
-    summary = "Update packages within the ranges they were installed with.",
+    summary = "Update installed packages.",
     flags = { "--force" },
     complete = "installed",
     run = function(args, flags)
@@ -219,7 +224,7 @@ COMMANDS[#COMMANDS + 1] = {
     run = function(_, flags)
         local records = state.list()
         if #records == 0 then
-            ui.info("No packages are installed.")
+            ui.say("No packages are installed.")
             return true
         end
 
@@ -232,24 +237,24 @@ COMMANDS[#COMMANDS + 1] = {
             end
         end
 
-        local lines = {}
+        -- List every package, or only the ones with updates
+        local rows = {}
         for _, record in ipairs(records) do
-            local line = record.name .. " " .. record.version .. (record.explicit and "" or " (dependency)")
             if registries then
                 local newest = newestAllowed(registries, record)
                 local installed = semver.parse(record.version)
                 if newest and installed and installed < newest then
-                    lines[#lines + 1] = line .. " -> " .. tostring(newest)
+                    rows[#rows + 1] = { { record.name, "name" }, { record.version .. " -> " .. tostring(newest), "dim" } }
                 end
             else
-                lines[#lines + 1] = line
+                rows[#rows + 1] = { { record.name, "name" }, { record.version, "dim" }, { record.explicit and "" or "dependency", "faint" } }
             end
         end
 
-        if #lines == 0 then
-            ui.info("Everything is up to date.")
+        if #rows == 0 then
+            ui.say("Everything is up to date.")
         else
-            ui.page(lines)
+            ui.paged(function() ui.table(rows) end)
         end
         return true
     end,
@@ -258,7 +263,7 @@ COMMANDS[#COMMANDS + 1] = {
 COMMANDS[#COMMANDS + 1] = {
     name = "search",
     usage = "<words> ...",
-    summary = "Search packages by name, description, and tags.",
+    summary = "Find packages by name or description.",
     flags = {},
     run = function(args)
         if #args == 0 then
@@ -271,16 +276,18 @@ COMMANDS[#COMMANDS + 1] = {
 
         local results = registry.search(registries, table.concat(args, " "))
         if #results == 0 then
-            ui.info("No packages match.")
+            ui.say("No packages match.")
             return true
         end
 
-        local lines = {}
-        for _, result in ipairs(results) do
-            lines[#lines + 1] = result.name .. " " .. result.entry.latest
-            lines[#lines + 1] = "  " .. (result.entry.description or "")
-        end
-        ui.page(lines)
+        -- Show each result's name and version, then its description indented beneath
+        ui.paged(function()
+            for _, result in ipairs(results) do
+                ui.line({ { result.name, "name" }, { " " .. result.entry.latest, "dim" } }, 2)
+                ui.line({ { "  " }, { result.entry.description or "" } }, 2, 2)
+            end
+            ui.note(packages(#results) .. ". Install one with `ccpm install <name>`.")
+        end)
         return true
     end,
 }
@@ -309,27 +316,31 @@ COMMANDS[#COMMANDS + 1] = {
         end
 
         -- Describe the package
-        ui.info(name)
+        ui.line({ { name, "name" }, { " " .. (entry and entry.latest or record.version), "dim" } })
+        local rows = {}
         if entry and source then
-            ui.info("  " .. (entry.description or ""))
-            field("Author", entry.author or "unknown")
+            ui.say(entry.description or "")
+            rows[#rows + 1] = field("Author", entry.author or "unknown")
             for _, pair in ipairs({ { "License", entry.license }, { "Repository", entry.repository }, { "Homepage", entry.homepage } }) do
                 if pair[2] then
-                    field(pair[1], pair[2])
+                    rows[#rows + 1] = field(pair[1], pair[2])
                 end
             end
             if entry.tags and #entry.tags > 0 then
-                field("Tags", table.concat(entry.tags, ", "))
+                rows[#rows + 1] = field("Tags", table.concat(entry.tags, ", "))
             end
             if entry.origin then
-                field("Source", entry.origin.source .. ", " .. entry.origin.url)
+                rows[#rows + 1] = field("Source", entry.origin.source)
+                rows[#rows + 1] = field("Page", entry.origin.url)
             end
-            field("Registry", source.name)
-            field("Versions", table.concat(entry.versions or {}, ", "))
+            rows[#rows + 1] = field("Registry", source.name)
+            rows[#rows + 1] = field("Versions", table.concat(entry.versions or {}, ", "))
         end
 
         -- Describe the installed copy
-        field("Installed", record and (record.version .. (record.explicit and "" or " (dependency)")) or "no")
+        rows[#rows + 1] = field("Installed", record and (record.version .. (record.explicit and "" or ", as a dependency")) or "no", record and "good" or nil)
+        ui.blank()
+        ui.table(rows, 2)
         return true
     end,
 }
@@ -345,7 +356,7 @@ COMMANDS[#COMMANDS + 1] = {
             return false
         end
 
-        ui.success("Refreshed " .. #registries .. " registry index(es).")
+        ui.success("Refreshed " .. #registries .. (#registries == 1 and " registry." or " registries."))
         return true
     end,
 }
@@ -353,14 +364,16 @@ COMMANDS[#COMMANDS + 1] = {
 COMMANDS[#COMMANDS + 1] = {
     name = "env",
     usage = "",
-    summary = "Show the versions packages are checked against.",
+    summary = "Show this computer's game versions.",
     flags = {},
     run = function()
         local current = env.current()
-        ui.info("ComputerCraft: " .. (current.cc and tostring(current.cc) or "unknown"))
-        ui.info("Minecraft:     " .. (current.mc and tostring(current.mc) or ("unknown (" .. current.platform .. ")")))
-        ui.info("Computer:      " .. (current.color and "advanced " or "") .. tostring(current.kind))
-        ui.muted("_HOST:         " .. current.host)
+        ui.table({
+            field("ComputerCraft", current.cc and tostring(current.cc) or "unknown"),
+            field("Minecraft", current.mc and tostring(current.mc) or ("unknown, running on " .. current.platform)),
+            field("Computer", (current.color and "advanced " or "") .. tostring(current.kind)),
+            field("_HOST", current.host, "dim"),
+        })
         return true
     end,
 }
@@ -368,7 +381,7 @@ COMMANDS[#COMMANDS + 1] = {
 COMMANDS[#COMMANDS + 1] = {
     name = "hosts",
     usage = "[list | add <url prefix> | remove <url prefix>]",
-    summary = "Manage where package files may be downloaded from.",
+    summary = "Manage where files may come from.",
     flags = {},
     subcommands = { "list", "add", "remove" },
     run = function(args)
@@ -379,20 +392,20 @@ COMMANDS[#COMMANDS + 1] = {
         if action == "list" and not prefix then
             for _, source in ipairs(settings.registries) do
                 local index = files.readJSON(paths.join(paths.cache(), source.name .. ".json"))
-                ui.info("From registry " .. source.name .. ":")
+                ui.line({ { "From registry " }, { source.name, "name" }, { ":" } })
                 for _, host in ipairs(index and index.hosts or {}) do
-                    ui.muted("  " .. host)
+                    ui.line({ { "  " }, { host, "dim" } }, 2)
                 end
                 if not index then
-                    ui.muted("  (run `ccpm refresh` to load them)")
+                    ui.line({ { "  " }, { "Run `ccpm refresh` to load them.", "faint" } }, 2)
                 end
             end
-            ui.info("Added by you:")
+            ui.say("Added by you:")
             for _, host in ipairs(settings.hosts) do
-                ui.muted("  " .. host)
+                ui.line({ { "  " }, { host, "dim" } }, 2)
             end
             if #settings.hosts == 0 then
-                ui.muted("  (none)")
+                ui.line({ { "  " }, { "None. Add one with `ccpm hosts add <url prefix>`.", "faint" } }, 2)
             end
             return true
         end
@@ -409,7 +422,7 @@ COMMANDS[#COMMANDS + 1] = {
             end
             for _, host in ipairs(settings.hosts) do
                 if host == prefix then
-                    ui.info("`" .. prefix .. "` is already allowed.")
+                    ui.say("`" .. prefix .. "` is already allowed.")
                     return true
                 end
             end
@@ -437,7 +450,7 @@ COMMANDS[#COMMANDS + 1] = {
 COMMANDS[#COMMANDS + 1] = {
     name = "registry",
     usage = "[list | add <name> <url> | remove <name>]",
-    summary = "Manage the registries packages are installed from.",
+    summary = "Manage the registries to install from.",
     flags = {},
     subcommands = { "list", "add", "remove" },
     run = function(args)
@@ -446,10 +459,11 @@ COMMANDS[#COMMANDS + 1] = {
 
         -- List registries in priority order
         if action == "list" and #args <= 1 then
+            local rows = {}
             for i, source in ipairs(settings.registries) do
-                ui.info(i .. ". " .. source.name)
-                ui.muted("   " .. source.url)
+                rows[i] = { { i .. ".", "dim" }, { source.name, "name" }, { source.url, "dim" } }
             end
+            ui.table(rows)
             return true
         end
 
@@ -479,7 +493,7 @@ COMMANDS[#COMMANDS + 1] = {
             end
             settings.registries[#settings.registries + 1] = source
             config.save(settings)
-            ui.success("Added registry `" .. name .. "` with " .. countKeys(loaded.packages) .. " package(s).")
+            ui.success("Added registry `" .. name .. "` with " .. packages(countKeys(loaded.packages)) .. ".")
             return true
         elseif action == "remove" and #args == 2 then
             for i, source in ipairs(settings.registries) do
@@ -505,13 +519,13 @@ COMMANDS[#COMMANDS + 1] = {
 COMMANDS[#COMMANDS + 1] = {
     name = "doctor",
     usage = "",
-    summary = "Check CCPM and installed packages for problems.",
+    summary = "Check CCPM and packages for problems.",
     flags = {},
     run = function()
-        local healthy = true
+        local failures = 0
         local function fail(text)
-            healthy = false
-            report(false, text)
+            failures = failures + 1
+            report("fail", text)
         end
 
         -- Check each registry can be downloaded and read
@@ -519,7 +533,7 @@ COMMANDS[#COMMANDS + 1] = {
         for _, source in ipairs(settings.registries) do
             local loaded, err = registry.load(source, settings.hosts, true)
             if loaded then
-                report(true, "registry `" .. source.name .. "` is reachable")
+                report("ok", "registry `" .. source.name .. "` is reachable")
             else
                 fail(err or ("registry `" .. source.name .. "` could not be loaded"))
             end
@@ -527,12 +541,12 @@ COMMANDS[#COMMANDS + 1] = {
 
         -- Check the computer is set up
         if setup.isHookInstalled() then
-            report(true, "boot hook is installed")
+            report("ok", "boot hook is installed")
         else
             fail("boot hook is missing or outdated; run `ccpm setup`")
         end
         if setup.isPackagePathConfigured() then
-            report(true, "installed libraries can be required")
+            report("ok", "installed libraries can be required")
         else
             fail("installed libraries cannot be required; run `ccpm setup`")
         end
@@ -551,7 +565,7 @@ COMMANDS[#COMMANDS + 1] = {
                     fail(record.name .. ": `" .. file.path .. "` is missing; run `ccpm install " .. record.name .. "@" .. record.version .. " --force`")
                     problems = problems + 1
                 elseif sha256.hex(data) ~= file.sha256 then
-                    report(nil, record.name .. ": `" .. file.path .. "` was changed since it was installed")
+                    report("warn", record.name .. ": `" .. file.path .. "` was changed since it was installed")
                     problems = problems + 1
                 end
             end
@@ -565,21 +579,24 @@ COMMANDS[#COMMANDS + 1] = {
                 end
             end
             if problems == 0 then
-                report(true, record.name .. " " .. record.version)
+                report("ok", record.name .. " " .. record.version)
             end
         end
 
-        if healthy then
+        ui.blank()
+        if failures == 0 then
             ui.success("No problems found.")
+        else
+            ui.error(failures .. (failures == 1 and " problem" or " problems") .. " found.")
         end
-        return healthy
+        return failures == 0
     end,
 }
 
 COMMANDS[#COMMANDS + 1] = {
     name = "setup",
     usage = "",
-    summary = "Add CCPM's programs and libraries to this computer's paths.",
+    summary = "Set this computer up for CCPM again.",
     flags = {},
     run = function(_, _, shellApi)
         setup.install(shellApi)
@@ -591,7 +608,7 @@ COMMANDS[#COMMANDS + 1] = {
 COMMANDS[#COMMANDS + 1] = {
     name = "help",
     usage = "[<command>]",
-    summary = "Show how to use CCPM or a command.",
+    summary = "Show how to use a command.",
     flags = {},
     run = nil,
 }
@@ -641,21 +658,26 @@ end
 --- Prints how to use CCPM, or one command.
 ---@param command Command|nil The command, or `nil` for every command.
 function cli.printHelp(command)
+    -- Describe one command
     if command then
-        ui.info("Usage: " .. PROGRAM .. " " .. command.name .. (command.usage ~= "" and (" " .. command.usage) or ""))
-        ui.muted(command.summary)
-        ui.muted("Flags: " .. table.concat(cli.flagsOf(command), ", "))
+        ui.line({ { "Usage: ", "dim" }, { PROGRAM .. " " .. command.name .. (command.usage ~= "" and (" " .. command.usage) or "") } }, 7)
+        ui.say(command.summary)
+        ui.line({ { "Flags: ", "dim" }, { table.concat(cli.flagsOf(command), ", ") } }, 7)
         return
     end
 
+    -- Describe every command
     local record = state.get(SELF_PACKAGE)
-    ui.info("CCPM " .. (record and record.version or "(development)") .. ", the ComputerCraft package manager.")
-    ui.info("Usage: " .. PROGRAM .. " <command> [arguments] [flags]")
-    local lines = {}
+    local rows = {}
     for _, entry in ipairs(COMMANDS) do
-        lines[#lines + 1] = "  " .. entry.name .. string.rep(" ", 9 - #entry.name) .. entry.summary
+        rows[#rows + 1] = { { entry.name, "name" }, { entry.summary } }
     end
-    ui.page(lines)
+    ui.paged(function()
+        ui.line({ { "CCPM", "name" }, { " " .. (record and record.version or "dev"), "dim" }, { ", the ComputerCraft package manager." } })
+        ui.line({ { "Usage: ", "dim" }, { PROGRAM .. " <command> [arguments]" } }, 7)
+        ui.blank()
+        ui.table(rows, 2)
+    end)
 end
 
 --- Runs the `ccpm` program.

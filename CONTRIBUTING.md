@@ -61,7 +61,7 @@ Every change needs specs:
 Some things are relied on by computers and programs we cannot update, so they must never break:
 
 - **The installer URL.** `install.lua` on `master` is the command everyone runs; it must never move or stop working.
-- **The `ccpm` library.** Functions in `src/lib/ccpm/init.lua` are a public API. Add to it freely, but never remove a function or change what an existing one does.
+- **The `ccpm` library.** Functions in `src/lib/ccpm/init.lua` are a public API. Add to it freely, but never remove a function or change what an existing one does. Every other `ccpm.*` module is internal and may change at any time.
 - **The bootstrap snippet** in the README relies on `/ccpm/lib/ccpm/init.lua` existing.
 - **Version ranges.** `src/lib/ccpm/semver.lua` must accept exactly the same ranges as the registry's `semver.py`; change both together.
 - **The index format.** The client must keep reading the `index.json` format the registry publishes; the registry bumps its format number for any change the client cannot safely ignore.

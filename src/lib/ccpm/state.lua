@@ -49,6 +49,7 @@ local state = {}
 ---@field startup string|nil The program run at boot.
 ---@field command string|nil The command that installed it, for packages that run their own installer.
 ---@field explicit boolean If the user asked for it, rather than it being installed as a dependency.
+---@field range string|nil The version range the user asked for, which updates stay within.
 
 --- Gets the record of an installed package.
 ---@param name string The package name.

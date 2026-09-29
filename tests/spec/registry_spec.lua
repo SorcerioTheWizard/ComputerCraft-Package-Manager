@@ -91,4 +91,21 @@ describe("registry", function()
         check.equals(#registry.search(loaded, "package"), 2)
         check.equals(#registry.search(loaded, "nothing"), 0)
     end)
+
+    it("matches the starts of words and ranks name matches first", function()
+        local source = {
+            name = "test",
+            packages = {
+                shovel = { description = "Digs more dirt." },
+                orescanner = { description = "Finds ores." },
+                mapper = { description = "Maps ore veins." },
+            },
+        }
+
+        local names = {}
+        for i, result in ipairs(registry.search({ source }, "ore")) do
+            names[i] = result.name
+        end
+        check.same(names, { "orescanner", "mapper" })
+    end)
 end)

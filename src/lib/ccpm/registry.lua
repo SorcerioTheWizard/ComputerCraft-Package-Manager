@@ -49,6 +49,7 @@ local registry = {}
 ---@field tags string[]|nil
 ---@field latest string
 ---@field versions string[] Versions from highest to lowest.
+---@field origin Origin|nil Where the package was synced from, for packages from external sources.
 
 ---@class LoadedRegistry
 ---@field name string The registry name.
@@ -175,16 +176,45 @@ function registry.fetchManifest(source, name, version)
     return manifest
 end
 
---- Searches the packages of every registry by name, description, and tags.
----@param registries LoadedRegistry[] The registries in priority order.
----@param query string The words to search for, matched without case.
----@return { name: string, entry: IndexEntry, registry: string }[] results The matches, sorted by name, skipping names shadowed by a higher priority registry.
-function registry.search(registries, query)
-    -- Split the query into lowercase words
+--- Splits text into lowercase words, treating anything but letters and digits as a separator.
+---@param text string The text.
+---@return string[] words The words.
+local function wordsOf(text)
     local words = {}
-    for word in query:lower():gmatch("%S+") do
+    for word in text:lower():gmatch("[%w]+") do
         words[#words + 1] = word
     end
+
+    return words
+end
+
+--- Checks if every query word starts one of the text's words, so `ore` matches `orescanner` but not `more`.
+---@param query string[] The query words.
+---@param words string[] The text's words.
+---@return boolean matches If every query word matches.
+local function matchesAll(query, words)
+    for _, wanted in ipairs(query) do
+        local found = false
+        for _, word in ipairs(words) do
+            if word:sub(1, #wanted) == wanted then
+                found = true
+                break
+            end
+        end
+        if not found then
+            return false
+        end
+    end
+
+    return true
+end
+
+--- Searches the packages of every registry by name, description, and tags.
+---@param registries LoadedRegistry[] The registries in priority order.
+---@param query string The words to search for, matched without case at the start of words.
+---@return { name: string, entry: IndexEntry, registry: string }[] results The matches, name matches first, then sorted by name, skipping names shadowed by a higher priority registry.
+function registry.search(registries, query)
+    local wanted = wordsOf(query)
 
     local results, seen = {}, {}
     for _, source in ipairs(registries) do
@@ -192,22 +222,21 @@ function registry.search(registries, query)
             if not seen[name] then
                 seen[name] = true
 
-                -- Require every word somewhere in the searchable text
-                local text = (name .. " " .. (entry.description or "") .. " " .. table.concat(entry.tags or {}, " ")):lower()
-                local matches = true
-                for _, word in ipairs(words) do
-                    if not text:find(word, 1, true) then
-                        matches = false
-                        break
-                    end
-                end
-                if matches then
-                    results[#results + 1] = { name = name, entry = entry, registry = source.name }
+                -- Require every word in the name, description, or tags, and rank name matches first
+                local nameWords = wordsOf(name)
+                local allWords = wordsOf(name .. " " .. (entry.description or "") .. " " .. table.concat(entry.tags or {}, " "))
+                if matchesAll(wanted, allWords) then
+                    results[#results + 1] = { name = name, entry = entry, registry = source.name, rank = matchesAll(wanted, nameWords) and 1 or 2 }
                 end
             end
         end
     end
-    table.sort(results, function(a, b) return a.name < b.name end)
+    table.sort(results, function(a, b)
+        if a.rank ~= b.rank then
+            return a.rank < b.rank
+        end
+        return a.name < b.name
+    end)
 
     return results
 end
