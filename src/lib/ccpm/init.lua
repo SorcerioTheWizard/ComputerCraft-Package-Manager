@@ -22,11 +22,19 @@ local function ensureLibraryPath()
     end
 end
 
---- Checks if an installed package provides a library.
+--- Finds the library module an installed package provides, which differs from the package name for packages synced from other catalogs.
 ---@param name string The package name.
----@return boolean hasLibrary If `lib/<name>.lua` or `lib/<name>/init.lua` exists.
-local function hasLibrary(name)
-    return fs.exists(paths.join(paths.lib(), name .. ".lua")) or fs.exists(paths.join(paths.lib(), name, "init.lua"))
+---@return string|nil module The module to `require`, or `nil` if the package has no library.
+local function libraryModule(name)
+    local record = require("ccpm.state").get(name)
+    for _, file in ipairs(record and record.files or {}) do
+        local module = file.path:match("^lib/([%w_%-]+)%.lua$") or file.path:match("^lib/([%w_%-]+)/init%.lua$")
+        if module then
+            return module
+        end
+    end
+
+    return nil
 end
 
 --- Checks if a package is installed at a version in a range.
@@ -83,8 +91,9 @@ function ccpm.requires(name, range, options)
     end
 
     -- Load its library if it has one
-    if hasLibrary(name) then
-        return require(name)
+    local module = libraryModule(name)
+    if module then
+        return require(module)
     end
     return true
 end

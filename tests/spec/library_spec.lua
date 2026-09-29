@@ -83,6 +83,16 @@ describe("ccpm.requires", function()
         check.falsy(output:find("Continue?", 1, true))
     end)
 
+    it("loads libraries named differently from their package", function()
+        served:add("pinestore/pixel", "1.0.0", { files = { ["lib/pixel_lite.lua"] = "return { name = 'pixel lite' }" } })
+        served:serve()
+        package.loaded.pixel_lite = nil
+
+        local ok, pixel = captured(true, function() return ccpm.requires("pinestore/pixel") end)
+        check.truthy(ok, tostring(pixel))
+        check.equals(pixel.name, "pixel lite")
+    end)
+
     it("returns true for packages without a library", function()
         local ok, result = captured(true, function() return ccpm.requires("tool") end)
         check.truthy(ok)
