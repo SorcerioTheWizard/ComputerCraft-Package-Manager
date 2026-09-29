@@ -4,16 +4,17 @@
 
 CCPM installs, updates, and removes programs and libraries on ComputerCraft computers, along with everything they depend on.
 
-* [Features](#features)
-* [Install](#install)
-* [Installing Packages](#installing-packages)
-    * [Commands](#commands)
-    * [Pinestore Projects](#pinestore-projects)
-* [Using CCPM in Your Programs](#using-ccpm-in-your-programs)
-* [Publishing Packages](#publishing-packages)
-* [How It Works](#how-it-works)
-* [Development](#development)
-* [Credits](#credits)
+* [Computer Craft Package Manager](#computer-craft-package-manager)
+    * [Features](#features)
+    * [Install](#install)
+    * [Installing Packages](#installing-packages)
+        * [Commands](#commands)
+        * [Pinestore Projects](#pinestore-projects)
+    * [Using CCPM in Your Programs](#using-ccpm-in-your-programs)
+    * [Publishing Packages](#publishing-packages)
+    * [How It Works](#how-it-works)
+    * [Development](#development)
+    * [Credits](#credits)
 
 ## Features
 
@@ -153,7 +154,7 @@ scripts/test.sh semver       # Run the specs whose file names contain `semver`
 ```
 
 Set `CRAFTOS` to the CraftOS-PC console executable when `craftos` is not on the `PATH`.
-See `CLAUDE.md` for the source layout and code style.
+See `CLAUDE.md` for the source layout and code style, and [CONTRIBUTING.md](CONTRIBUTING.md) for how to propose a change.
 
 ## Credits
 
