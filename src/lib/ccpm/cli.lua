@@ -30,60 +30,6 @@ local FLAG_ALIASES = { ["-y"] = "--yes" }
 local COMMON_FLAGS = { "--yes" }
 
 -- MARK: Private Functions
---- Prints a plan and asks before applying it.
----@param plan Plan The plan.
----@param flags table<string, boolean> The flags.
----@param nothingMessage string What to say when the plan changes nothing.
----@return boolean ok If the plan was applied or had nothing to do.
-local function applyPlan(plan, flags, nothingMessage)
-    -- Report requests that are already satisfied
-    for _, name in ipairs(plan.unchanged) do
-        local record = state.get(name)
-        ui.muted(name .. " " .. (record and record.version or "") .. " is already installed.")
-    end
-
-    -- Apply quietly when nothing is downloaded
-    if #plan.steps == 0 then
-        manager.apply(plan, flags.force)
-        if #plan.unchanged == 0 then
-            ui.info(nothingMessage)
-        end
-        return true
-    end
-
-    -- Show what will change
-    ui.info("CCPM will make these changes:")
-    for _, step in ipairs(plan.steps) do
-        if step.previous then
-            ui.info("  ~ " .. step.name .. " " .. step.previous.version .. " -> " .. step.version)
-        else
-            ui.info("  + " .. step.name .. " " .. step.version .. (step.explicit and "" or " (dependency)"))
-        end
-        for _, warning in ipairs(step.warnings) do
-            ui.warn("    ! " .. warning)
-        end
-    end
-
-    -- Ask first
-    if not flags.yes and not ui.confirm("Continue?") then
-        ui.info("Cancelled.")
-        return false
-    end
-
-    -- Apply it
-    local removed, err = manager.apply(plan, flags.force)
-    if not removed then
-        ui.error(err or "the changes could not be applied")
-        return false
-    end
-    ui.success("Done. " .. #plan.steps .. " package(s) changed.")
-    for _, name in ipairs(removed) do
-        ui.muted("Removed " .. name .. ", which nothing needs anymore.")
-    end
-
-    return true
-end
-
 --- Loads the registries, printing the error if they cannot be loaded.
 ---@param refresh boolean If indexes should be downloaded even when cached.
 ---@return LoadedRegistry[]|nil registries The registries, or `nil` if they could not be loaded.
@@ -176,7 +122,7 @@ COMMANDS[#COMMANDS + 1] = {
             return false
         end
 
-        return applyPlan(plan, flags, "Nothing to install.")
+        return manager.confirmAndApply(plan, { yes = flags.yes, force = flags.force, nothing = "Nothing to install." })
     end,
 }
 
@@ -229,7 +175,7 @@ COMMANDS[#COMMANDS + 1] = {
         end
         plan.unchanged = {}
 
-        return applyPlan(plan, flags, "Everything is up to date.")
+        return manager.confirmAndApply(plan, { yes = flags.yes, force = flags.force, nothing = "Everything is up to date." })
     end,
 }
 
@@ -250,7 +196,7 @@ COMMANDS[#COMMANDS + 1] = {
             return false
         end
         plan.unchanged = {}
-        if not applyPlan(plan, flags, "CCPM is up to date.") then
+        if not manager.confirmAndApply(plan, { yes = flags.yes, force = flags.force, nothing = "CCPM is up to date." }) then
             return false
         end
 

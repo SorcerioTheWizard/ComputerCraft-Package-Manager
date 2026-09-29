@@ -8,9 +8,11 @@ local installer = require("ccpm.installer")
 local registry = require("ccpm.registry")
 local resolver = require("ccpm.resolver")
 local state = require("ccpm.state")
+local ui = require("ccpm.ui")
 
 -- MARK: Constants
 local ANY_VERSION = "*"
+local DEFAULT_INTRO = "CCPM will make these changes:"
 
 -- MARK: Private Functions
 --- Maps installed records by name.
@@ -139,6 +141,66 @@ function manager.apply(plan, force)
     end
 
     return removed
+end
+
+---@class ConfirmOptions
+---@field yes boolean|nil If the question should be skipped.
+---@field force boolean|nil If unmanaged files may be overwritten.
+---@field nothing string|nil What to say when the plan changes nothing.
+---@field intro string|nil The line shown above the changes.
+
+--- Shows a plan, asks before applying it, and reports the result.
+---@param plan Plan The plan.
+---@param options ConfirmOptions How to present and apply it.
+---@return boolean ok If the plan was applied or had nothing to do.
+---@return string|nil err Why it was not applied, `cancelled` if the user declined.
+function manager.confirmAndApply(plan, options)
+    -- Report requests that are already satisfied
+    for _, name in ipairs(plan.unchanged) do
+        local record = state.get(name)
+        ui.muted(name .. " " .. (record and record.version or "") .. " is already installed.")
+    end
+
+    -- Apply quietly when nothing is downloaded
+    if #plan.steps == 0 then
+        manager.apply(plan, options.force)
+        if #plan.unchanged == 0 and options.nothing then
+            ui.info(options.nothing)
+        end
+        return true
+    end
+
+    -- Show what will change
+    ui.info(options.intro or DEFAULT_INTRO)
+    for _, step in ipairs(plan.steps) do
+        if step.previous then
+            ui.info("  ~ " .. step.name .. " " .. step.previous.version .. " -> " .. step.version)
+        else
+            ui.info("  + " .. step.name .. " " .. step.version .. (step.explicit and "" or " (dependency)"))
+        end
+        for _, warning in ipairs(step.warnings) do
+            ui.warn("    ! " .. warning)
+        end
+    end
+
+    -- Ask first
+    if not options.yes and not ui.confirm("Continue?") then
+        ui.info("Cancelled.")
+        return false, "cancelled"
+    end
+
+    -- Apply it
+    local removed, err = manager.apply(plan, options.force)
+    if not removed then
+        ui.error(err or "the changes could not be applied")
+        return false, err
+    end
+    ui.success("Done. " .. #plan.steps .. " package(s) changed.")
+    for _, name in ipairs(removed) do
+        ui.muted("Removed " .. name .. ", which nothing needs anymore.")
+    end
+
+    return true
 end
 
 --- Removes packages, and the dependencies nothing else needs afterwards.

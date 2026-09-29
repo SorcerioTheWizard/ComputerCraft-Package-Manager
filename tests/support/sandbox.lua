@@ -13,11 +13,14 @@ local SANDBOX_ROOT = "/sandbox"
 -- MARK: Functions
 local sandbox = {}
 
---- Starts a test with an empty CCPM root.
+--- Starts a test with an empty CCPM root and no network access.
 ---@return string root The sandbox root.
 function sandbox.setup()
     fs.delete(SANDBOX_ROOT)
     paths.setRoot(SANDBOX_ROOT)
+
+    -- Answer every request with 404 until the test serves something
+    fakeHttp.install({})
 
     return SANDBOX_ROOT
 end

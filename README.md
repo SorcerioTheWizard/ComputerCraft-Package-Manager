@@ -14,3 +14,39 @@ The installer downloads CCPM from the [registry](https://github.com/SorcerioTheW
 Run it again at any time to update or repair CCPM.
 
 To install from a different registry, pass its URL: `wget run <installer URL> <registry URL>`.
+
+## Using CCPM in Your Programs
+
+Programs can load the packages they need with `require("ccpm")`.
+Paste this at the top of a program to also install CCPM on computers that do not have it yet:
+
+```lua
+-- Install CCPM if needed, then load it
+if not fs.exists("/ccpm/lib/ccpm/init.lua") then
+    shell.run("wget", "run", "https://raw.githubusercontent.com/SorcerioTheWizard/ComputerCraft-Package-Manager/master/install.lua")
+end
+package.path = "/ccpm/lib/?.lua;/ccpm/lib/?/init.lua;" .. package.path
+local ccpm = require("ccpm")
+```
+
+Then declare what the program needs where you would call `require`:
+
+```lua
+local json = ccpm.requires("json", "^1.0")
+```
+
+If the package is missing or too old, CCPM shows what it will install and asks first.
+The package then stays installed, so later runs load it immediately without touching the network.
+
+| Function                               | Description                                                                                                  |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `ccpm.requires(name, range, options)`  | Installs a package if needed, then returns its library, or `true` if it only has programs. `range` defaults to any version. Pass `{ auto = true }` to install without asking, for unattended programs. |
+| `ccpm.installed(name)`                 | The installed version of a package, or `nil`.                                                                |
+| `ccpm.version()`                       | The installed version of CCPM.                                                                               |
+| `ccpm.env()`                           | The computer's ComputerCraft and Minecraft versions, kind, and color support.                                |
+| `ccpm.dataPath(name, file)`            | A folder for a program's own settings and saves, created if needed, or a file inside it.                     |
+| `ccpm.sharePath(name, file)`           | The folder of a package's read-only assets, or a file inside it.                                             |
+| `ccpm.preventTerminate()`              | Stops Ctrl+T from closing programs until `ccpm.allowTerminate()` or a reboot, for door locks and kiosks.     |
+| `ccpm.withoutTerminate(fn, ...)`       | Runs a function Ctrl+T cannot interrupt, then allows it again, even if the function fails.                   |
+| `ccpm.runAtStartup(name, program)`     | Runs a program every time the computer boots, alongside CCPM's other boot entries.                           |
+| `ccpm.removeFromStartup(name)`         | Stops running a program added with `runAtStartup`.                                                           |
