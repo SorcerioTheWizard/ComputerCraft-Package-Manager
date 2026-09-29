@@ -1,11 +1,12 @@
 {
     "runtime.version": "Lua 5.2",
-    "workspace.library": ["src/lib", "tests"],
+    "workspace.library": ["src/lib", "tests", "types"],
     "diagnostics.globals": [
         "_HOST",
         "_CC_DEFAULT_SETTINGS",
         "colors",
         "colours",
+        "commands",
         "fs",
         "http",
         "keys",

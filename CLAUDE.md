@@ -22,6 +22,7 @@ The source tree mirrors where files are installed on a computer:
 - `src/lib/` is installed to `/ccpm/lib/`, which is added to the `require` path. Modules are required as `ccpm.<module>`.
 - `src/startup/` is installed to `/startup/`.
 - `install.lua` is the bootstrap installer. Its URL on `master` is public and must never move.
+- `types/` holds type stubs for the Lua language server. It is never installed; add ComputerCraft APIs there when the editor flags them as undefined.
 
 The package registry lives in a separate repository, [CCPM-Registry](https://github.com/SorcerioTheWizard/CCPM-Registry).
 
