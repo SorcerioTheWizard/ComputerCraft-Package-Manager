@@ -24,7 +24,7 @@ FakeRegistry.__index = FakeRegistry
 --- Adds a package version.
 ---@param name string The package name.
 ---@param version string The version.
----@param options { files: table<string, string>|nil, dependencies: table<string, string>|nil, compat: table|nil, startup: string|nil, command: string|nil, origin: table|nil, badHash: boolean|nil, url: string|nil }|nil File contents keyed by install path, manifest keys, an installer `command` instead of files, and the package's `origin`.
+---@param options { files: table<string, string>|nil, dependencies: table<string, string>|nil, compat: table|nil, startup: string|nil, command: string|nil, origin: table|nil, badHash: boolean|nil, unhashed: boolean|nil, webPage: boolean|nil, url: string|nil }|nil File contents keyed by install path, manifest keys, an installer `command` instead of files, the package's `origin`, and how files are served.
 ---@return FakeRegistry self The registry, for chaining.
 function FakeRegistry:add(name, version, options)
     options = options or {}
@@ -39,8 +39,9 @@ function FakeRegistry:add(name, version, options)
     table.sort(paths)
     for _, path in ipairs(paths) do
         local url = options.url or (FILE_HOST .. "test/" .. name .. "/" .. version .. "/" .. path)
-        self.routes[url] = contents[path]
-        fileEntries[#fileEntries + 1] = { url = url, path = path, sha256 = options.badHash and string.rep("0", 64) or sha256.hex(contents[path]) }
+        self.routes[url] = options.webPage and { code = 200, body = contents[path], headers = { ["Content-Type"] = "text/html; charset=utf-8" } } or contents[path]
+        local hash = options.badHash and string.rep("0", 64) or sha256.hex(contents[path])
+        fileEntries[#fileEntries + 1] = { url = url, path = path, sha256 = (not options.unhashed) and hash or nil }
     end
 
     self.packages[name] = self.packages[name] or {}

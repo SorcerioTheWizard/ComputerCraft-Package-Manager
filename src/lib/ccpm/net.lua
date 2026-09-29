@@ -12,6 +12,7 @@ local net = {}
 ---@param url string The URL.
 ---@return string|nil body The response body, or `nil` if the download failed.
 ---@return string|nil err The error message if the download failed.
+---@return table<string, string>|nil headers The response headers if the download succeeded.
 function net.get(url)
     -- Explain a disabled HTTP API
     if not http then
@@ -35,9 +36,23 @@ function net.get(url)
     end
 
     local body = response.readAll() or ""
+    local headers = response.getResponseHeaders and response.getResponseHeaders() or {}
     response.close()
 
-    return body
+    return body, nil, headers
+end
+
+--- Checks if response headers describe a web page rather than a file.
+---@param headers table<string, string>|nil The response headers.
+---@return boolean isWebPage If the content type is HTML.
+function net.isWebPage(headers)
+    for key, value in pairs(headers or {}) do
+        if key:lower() == "content-type" and value:lower():find("text/html", 1, true) then
+            return true
+        end
+    end
+
+    return false
 end
 
 --- Downloads and decodes a JSON URL.

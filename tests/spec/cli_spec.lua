@@ -108,6 +108,11 @@ describe("cli", function()
             check.truthy(ok, output)
             check.contains(output, "! runs `/sandbox-setup.lua`, which CCPM cannot check")
 
+            served:add("ext/live", "1.0.0", { files = { ["bin/live.lua"] = "print('live')" }, unhashed = true })
+            served:serve()
+            _, output = run({ "install", "ext/live", "-y" })
+            check.contains(output, "! files are not verified against a published hash")
+
             _, output = run({ "info", "ext/app" })
             check.contains(output, "Source:     pinestore, https://pinestore.cc/projects/5/app")
 

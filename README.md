@@ -19,7 +19,7 @@ CCPM installs, updates, and removes programs and libraries on ComputerCraft comp
 
 - One command installs CCPM on any computer.
 - Dependencies are resolved automatically, with version ranges like `^1.2.0`, and backtracking when the newest versions do not fit together.
-- Every downloaded file is checked against the hash published in the registry before anything is written, so a failed or tampered download never leaves a computer half installed.
+- Every file is downloaded, and checked against its published hash when it has one, before anything is written, so a failed or tampered download never leaves a computer half installed.
 - Packages declare which ComputerCraft and Minecraft versions they work on, and CCPM checks them against the computer it runs on.
 - Installed programs run by name from anywhere, and installed libraries can be required from any program.
 - Programs can install what they need themselves with `ccpm.requires`.
@@ -76,7 +76,7 @@ CCPM always shows what it is about to change and asks first; `-y` or `--yes` ski
 
 Projects from [Pinestore](https://pinestore.cc) are mirrored into the registry every day and install the same way, as `pinestore/<name>`.
 
-- Projects that download a single file are tracked like any other package, with a recorded hash, and can be updated and removed cleanly.
+- Projects that download a single file are tracked like any other package, so they can be updated and removed cleanly. The file is downloaded straight from its author, exactly like Pinestore's own install command, so it has no published hash to check; CCPM says so before installing and refuses links that turn out to be web pages.
 - Projects that run their own installer show the exact command and ask before running it. CCPM cannot remove the files such an installer creates.
 - Installing through CCPM still counts as a download on Pinestore: every install is reported to Pinestore, so authors keep their download counts.
 

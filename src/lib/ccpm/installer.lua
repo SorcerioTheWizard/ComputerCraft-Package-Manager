@@ -133,14 +133,18 @@ local function prepareStep(step, owners, force)
             return nil, step.name .. ": `" .. entry.url .. "` is not on an allowed host (see `ccpm hosts`)"
         end
 
-        -- Download and check its contents
-        local data, downloadErr = net.get(entry.url)
+        -- Download it
+        local data, downloadErr, headers = net.get(entry.url)
         if not data then
             return nil, step.name .. ": " .. downloadErr
         end
+
+        -- Check it against its published hash, or at least that it is not a web page when it has none
         local actual = sha256.hex(data)
-        if actual ~= entry.sha256 then
+        if entry.sha256 and actual ~= entry.sha256 then
             return nil, step.name .. ": `" .. entry.path .. "` does not match its recorded hash, so it was not installed"
+        elseif not entry.sha256 and net.isWebPage(headers) then
+            return nil, step.name .. ": `" .. entry.url .. "` is a web page, not a file, so it was not installed"
         end
 
         downloads[#downloads + 1] = { path = entry.path, sha256 = actual, data = data }

@@ -9,6 +9,7 @@ local files = require("ccpm.files")
 local installer = require("ccpm.installer")
 local manager = require("ccpm.manager")
 local sandbox = require("support.sandbox")
+local sha256 = require("ccpm.sha256")
 local state = require("ccpm.state")
 
 -- MARK: Functions
@@ -106,6 +107,20 @@ describe("installer", function()
         check.contains(err, "does not match its recorded hash")
         check.falsy(fs.exists("/sandbox/bin/good.lua"))
         check.same(state.list(), {})
+    end)
+
+    it("installs files without a published hash, refusing web pages", function()
+        served:add("ext/live", "1.0.0", { files = { ["bin/live.lua"] = "print('live')" }, unhashed = true })
+        served:add("ext/page", "1.0.0", { files = { ["bin/page.lua"] = "<html></html>" }, unhashed = true, webPage = true })
+        served:serve()
+
+        check.same(install("ext/live"), {})
+        local record = assert(state.get("ext/live"))
+        check.equals(record.files[1].sha256, sha256.hex("print('live')"))
+
+        local _, err = install("ext/page")
+        check.contains(err, "is a web page, not a file")
+        check.falsy(fs.exists("/sandbox/bin/page.lua"))
     end)
 
     it("refuses unsafe paths and disallowed hosts", function()

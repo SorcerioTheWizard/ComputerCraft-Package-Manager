@@ -193,6 +193,14 @@ function manager.confirmAndApply(plan, options)
         if step.manifest.kind == "installer" then
             ui.warn("    ! runs `" .. step.manifest.installer.command .. "`, which CCPM cannot check, and the files it creates will not be tracked")
         end
+
+        -- Warn about files downloaded live, like the source's own install command would
+        for _, file in ipairs(step.manifest.files or {}) do
+            if not file.sha256 then
+                ui.warn("    ! files are not verified against a published hash")
+                break
+            end
+        end
     end
 
     -- Ask first

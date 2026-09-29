@@ -11,10 +11,12 @@ local posts = {}
 --- Creates a response handle like the ones `http.get` returns.
 ---@param code integer The HTTP status code.
 ---@param body string The response body.
+---@param headers table<string, string>|nil The response headers.
 ---@return table handle The response handle.
-local function response(code, body)
+local function response(code, body, headers)
     return {
         getResponseCode = function() return code end,
+        getResponseHeaders = function() return headers or { ["Content-Type"] = "text/plain" } end,
         readAll = function() return body end,
         close = function() end,
     }
@@ -25,7 +27,7 @@ local fakeHttp = {}
 
 --- Installs the fake `http` API.
 --- Routes map URLs to a body string, or to `{ code = 404 }` style tables; unknown URLs return 404.
----@param routes table<string, string|{ code: integer, body: string|nil }> The canned responses.
+---@param routes table<string, string|{ code: integer, body: string|nil, headers: table|nil }> The canned responses.
 ---@param blocked string[]|nil URL prefixes the fake server's HTTP rules block.
 function fakeHttp.install(routes, blocked)
     saved = saved or _G.http
@@ -58,7 +60,7 @@ function fakeHttp.install(routes, blocked)
             end
             local code = route and route.code or 404
             if code == 200 then
-                return response(200, route.body or "")
+                return response(200, route.body or "", route.headers)
             end
             return nil, "HTTP " .. code, response(code, "")
         end,
