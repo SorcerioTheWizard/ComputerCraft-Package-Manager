@@ -98,6 +98,25 @@ describe("cli", function()
         end)
     end)
 
+    describe("installers", function()
+        it("warn before running and after removing", function()
+            files.write("/sandbox-setup.lua", "-- installs nothing")
+            served:add("ext/app", "1.0.0", { command = "/sandbox-setup.lua", origin = { source = "pinestore", id = "5", url = "https://pinestore.cc/projects/5/app" } })
+            served:serve()
+
+            local ok, output = run({ "install", "ext/app", "-y" })
+            check.truthy(ok, output)
+            check.contains(output, "! runs `/sandbox-setup.lua`, which CCPM cannot check")
+
+            _, output = run({ "info", "ext/app" })
+            check.contains(output, "Source:     pinestore, https://pinestore.cc/projects/5/app")
+
+            _, output = run({ "remove", "ext/app", "-y" })
+            check.contains(output, "ext/app was installed by its own installer, so the files it created were left in place.")
+            fs.delete("/sandbox-setup.lua")
+        end)
+    end)
+
     describe("remove", function()
         it("removes packages and unneeded dependencies", function()
             run({ "install", "app", "-y" })

@@ -1,6 +1,6 @@
 # Computer Craft Package Manager
 
-> The package manager for ComputerCraft and ComputerCraft: Tweaked.
+> The package manager for ComputerCraft and ComputerCraft: Tweaked with Pinestore (and more) support.
 
 ## Install
 
@@ -14,6 +14,21 @@ The installer downloads CCPM from the [registry](https://github.com/SorcerioTheW
 Run it again at any time to update or repair CCPM.
 
 To install from a different registry, pass its URL: `wget run <installer URL> <registry URL>`.
+
+## Installing Packages
+
+```
+ccpm search <words>          Find packages
+ccpm install <package>       Install a package and everything it needs
+ccpm update                  Update installed packages
+ccpm remove <package>        Remove a package and anything only it needed
+ccpm help                    List every command
+```
+
+Projects from [Pinestore](https://pinestore.cc) are mirrored into the registry every day and install the same way, as `pinestore/<name>`.
+Pinestore projects that download a single file are tracked like any other package.
+Projects that run their own installer show the exact command and ask before running it, and CCPM cannot remove the files such an installer creates.
+Installs of Pinestore projects are reported to Pinestore so their authors keep their download counts.
 
 ## Using CCPM in Your Programs
 

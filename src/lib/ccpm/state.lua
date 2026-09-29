@@ -47,6 +47,7 @@ local state = {}
 ---@field files InstalledFile[] The files it owns.
 ---@field dependencies table<string, string> The ranges it needs, keyed by package name.
 ---@field startup string|nil The program run at boot.
+---@field command string|nil The command that installed it, for packages that run their own installer.
 ---@field explicit boolean If the user asked for it, rather than it being installed as a dependency.
 
 --- Gets the record of an installed package.

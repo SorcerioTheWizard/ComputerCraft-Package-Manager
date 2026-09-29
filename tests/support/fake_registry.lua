@@ -17,13 +17,14 @@ local FILE_HOST = "https://raw.githubusercontent.com/"
 ---@field packages table<string, table<string, table>> Manifests keyed by name, then version.
 ---@field routes table<string, string|table> Extra responses, like file contents.
 ---@field hosts string[] The URL prefixes the registry allows.
+---@field origins table<string, table> The origins of external packages, keyed by name.
 local FakeRegistry = {}
 FakeRegistry.__index = FakeRegistry
 
 --- Adds a package version.
 ---@param name string The package name.
 ---@param version string The version.
----@param options { files: table<string, string>|nil, dependencies: table<string, string>|nil, compat: table|nil, startup: string|nil, kind: string|nil, badHash: boolean|nil, url: string|nil }|nil File contents keyed by install path, and manifest keys.
+---@param options { files: table<string, string>|nil, dependencies: table<string, string>|nil, compat: table|nil, startup: string|nil, command: string|nil, origin: table|nil, badHash: boolean|nil, url: string|nil }|nil File contents keyed by install path, manifest keys, an installer `command` instead of files, and the package's `origin`.
 ---@return FakeRegistry self The registry, for chaining.
 function FakeRegistry:add(name, version, options)
     options = options or {}
@@ -44,12 +45,14 @@ function FakeRegistry:add(name, version, options)
 
     self.packages[name] = self.packages[name] or {}
     self.packages[name][version] = {
-        kind = options.kind or "files",
-        files = fileEntries,
+        kind = options.command and "installer" or "files",
+        files = (not options.command) and fileEntries or nil,
+        installer = options.command and { command = options.command } or nil,
         dependencies = options.dependencies,
         compat = options.compat,
         startup = options.startup,
     }
+    self.origins[name] = options.origin or self.origins[name]
 
     return self
 end
@@ -76,7 +79,7 @@ function FakeRegistry:allRoutes()
         for i, version in ipairs(list) do
             texts[i] = tostring(version)
         end
-        index.packages[name] = { description = "The " .. name .. " package.", author = "Tester", latest = texts[1], versions = texts }
+        index.packages[name] = { description = "The " .. name .. " package.", author = "Tester", latest = texts[1], versions = texts, origin = self.origins[name] }
     end
     routes[REGISTRY_URL .. "index.json"] = textutils.serializeJSON(index)
 
@@ -96,7 +99,7 @@ local fakeRegistry = {}
 --- Creates an empty fake registry.
 ---@return FakeRegistry registry The registry.
 function fakeRegistry.new()
-    return setmetatable({ packages = {}, routes = {}, hosts = { FILE_HOST } }, FakeRegistry)
+    return setmetatable({ packages = {}, routes = {}, origins = {}, hosts = { FILE_HOST } }, FakeRegistry)
 end
 
 fakeRegistry.URL = REGISTRY_URL

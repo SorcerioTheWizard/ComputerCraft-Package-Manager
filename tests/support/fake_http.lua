@@ -5,6 +5,7 @@
 -- MARK: State
 local saved = nil
 local requests = {}
+local posts = {}
 
 -- MARK: Private Functions
 --- Creates a response handle like the ones `http.get` returns.
@@ -29,7 +30,13 @@ local fakeHttp = {}
 function fakeHttp.install(routes, blocked)
     saved = saved or _G.http
     requests = {}
+    posts = {}
     _G.http = {
+        request = function(url, body, headers)
+            posts[#posts + 1] = { url = url, body = body, headers = headers }
+            return true
+        end,
+
         checkURL = function(url)
             for _, prefix in ipairs(blocked or {}) do
                 if url:sub(1, #prefix) == prefix then
@@ -70,6 +77,12 @@ end
 ---@return string[] urls The requested URLs, in order.
 function fakeHttp.requests()
     return requests
+end
+
+--- Lists the requests sent with `http.request` since the fake was installed.
+---@return { url: string, body: string|nil, headers: table|nil }[] posts The requests, in order.
+function fakeHttp.posts()
+    return posts
 end
 
 return fakeHttp

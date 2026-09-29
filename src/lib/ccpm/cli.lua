@@ -150,12 +150,15 @@ COMMANDS[#COMMANDS + 1] = {
             return false
         end
 
-        local removed, err = manager.remove(args, flags.cascade)
+        local removed, err, untracked = manager.remove(args, flags.cascade)
         if not removed then
             ui.error(err or "the packages could not be removed")
             return false
         end
         ui.success("Removed " .. table.concat(removed, ", ") .. ".")
+        for _, name in ipairs(untracked or {}) do
+            ui.warn(name .. " was installed by its own installer, so the files it created were left in place.")
+        end
 
         return true
     end,
@@ -317,6 +320,9 @@ COMMANDS[#COMMANDS + 1] = {
             end
             if entry.tags and #entry.tags > 0 then
                 field("Tags", table.concat(entry.tags, ", "))
+            end
+            if entry.origin then
+                field("Source", entry.origin.source .. ", " .. entry.origin.url)
             end
             field("Registry", source.name)
             field("Versions", table.concat(entry.versions or {}, ", "))

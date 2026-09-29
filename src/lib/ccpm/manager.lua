@@ -5,6 +5,7 @@
 -- MARK: Imports
 local env = require("ccpm.env")
 local installer = require("ccpm.installer")
+local origins = require("ccpm.origins")
 local registry = require("ccpm.registry")
 local resolver = require("ccpm.resolver")
 local state = require("ccpm.state")
@@ -130,6 +131,12 @@ function manager.apply(plan, force)
         return nil, err
     end
 
+    -- Tell external catalogs about installs of their projects
+    for _, step in ipairs(plan.steps) do
+        local entry = step.registry.packages[step.name]
+        origins.reportInstall(entry and entry.origin)
+    end
+
     -- Mark installed dependencies the user asked for by name as explicit
     for _, name in ipairs(plan.unchanged) do
         local record = plan.promote and plan.promote[name] and state.get(name)
@@ -181,6 +188,11 @@ function manager.confirmAndApply(plan, options)
         for _, warning in ipairs(step.warnings) do
             ui.warn("    ! " .. warning)
         end
+
+        -- Warn that installers run code CCPM cannot check or undo
+        if step.manifest.kind == "installer" then
+            ui.warn("    ! runs `" .. step.manifest.installer.command .. "`, which CCPM cannot check, and the files it creates will not be tracked")
+        end
     end
 
     -- Ask first
@@ -208,6 +220,7 @@ end
 ---@param cascade boolean|nil If packages depending on them should be removed too.
 ---@return string[]|nil removed Every package removed, or `nil` if nothing was removed.
 ---@return string|nil err The error message if nothing was removed.
+---@return string[]|nil untracked The removed packages that ran their own installers, whose files were left in place.
 function manager.remove(names, cascade)
     return installer.remove(names, cascade)
 end

@@ -13,6 +13,7 @@ local state = require("ccpm.state")
 -- MARK: Constants
 local SAFE_PATH_PATTERN = "^[%w%._/%-]+$"
 local BIN_PATTERN = "^bin/[%w_%-]+%.lua$"
+local MODULE_FILE_PATTERN = "^lib/[%w_%-]+%.lua$"
 local STARTUP_PREFIX = "50_ccpm-"
 
 -- MARK: Private Functions
@@ -34,8 +35,10 @@ local function checkPath(name, path)
     -- Allow programs, the package's own library, and its own assets
     local top = path:match("^[^/]+")
     local inOwnFolder = path:sub(#top + 2, #top + #name + 2) == name .. "/"
+    local isExternal = name:find("/", 1, true) ~= nil
     if (top == "bin" and path:match(BIN_PATTERN))
         or (top == "lib" and (path == "lib/" .. name .. ".lua" or inOwnFolder))
+        or (top == "lib" and isExternal and path:match(MODULE_FILE_PATTERN))
         or (top == "share" and inOwnFolder) then
         return nil
     end
@@ -99,7 +102,14 @@ end
 ---@return string|nil err The error message if a check failed.
 local function prepareStep(step, owners, force)
     local manifest = step.manifest
-    if manifest.kind ~= "files" then
+
+    -- Check an installer has a command to run
+    if manifest.kind == "installer" then
+        if type(manifest.installer) ~= "table" or type(manifest.installer.command) ~= "string" or manifest.installer.command == "" then
+            return nil, step.name .. " has no installer command"
+        end
+        return {}
+    elseif manifest.kind ~= "files" then
         return nil, step.name .. " uses the `" .. tostring(manifest.kind) .. "` kind, which this version of CCPM cannot install"
     end
 
@@ -139,10 +149,42 @@ local function prepareStep(step, owners, force)
     return downloads
 end
 
+--- Runs a package's own installer from the root folder, where installers expect to run.
+---@param step PlanStep The step.
+---@return boolean ok If the installer succeeded.
+---@return string|nil err The error message if it failed.
+local function runInstaller(step)
+    local command = step.manifest.installer.command
+    if not shell then
+        return false, step.name .. " can only be installed from the shell, because it runs `" .. command .. "`"
+    end
+
+    -- Run it, always returning to the current folder
+    local previous = shell.dir()
+    shell.setDir("/")
+    local ok, succeeded = pcall(shell.run, command)
+    shell.setDir(previous)
+    if not ok or not succeeded then
+        return false, step.name .. ": its installer `" .. command .. "` failed"
+    end
+
+    return true
+end
+
 --- Writes a prepared step to disk and records it.
 ---@param step PlanStep The step.
 ---@param downloads { path: string, sha256: string, data: string }[] The checked files.
+---@return boolean ok If the step was installed.
+---@return string|nil err The error message if it was not.
 local function commitStep(step, downloads)
+    -- Let installers install themselves
+    if step.manifest.kind == "installer" then
+        local ok, err = runInstaller(step)
+        if not ok then
+            return false, err
+        end
+    end
+
     -- Write the new files
     local kept = {}
     for _, download in ipairs(downloads) do
@@ -173,9 +215,12 @@ local function commitStep(step, downloads)
         files = recorded,
         dependencies = step.manifest.dependencies or {},
         startup = step.manifest.startup,
+        command = step.manifest.installer and step.manifest.installer.command,
         explicit = step.explicit,
         range = step.range,
     })
+
+    return true
 end
 
 --- Deletes an installed package's files, boot file, and record.
@@ -243,7 +288,10 @@ function installer.apply(plan, force)
 
     -- Commit them in dependency order
     for i, step in ipairs(plan.steps) do
-        commitStep(step, prepared[i])
+        local ok, err = commitStep(step, prepared[i])
+        if not ok then
+            return nil, err
+        end
     end
 
     -- Remove dependencies the new versions dropped
@@ -255,6 +303,7 @@ end
 ---@param cascade boolean|nil If packages depending on them should be removed too, rather than refusing.
 ---@return string[]|nil removed Every package removed, or `nil` if nothing was removed.
 ---@return string|nil err The error message if nothing was removed.
+---@return string[]|nil untracked The removed packages that ran their own installers, whose files were left in place.
 function installer.remove(names, cascade)
     -- Collect the packages to remove
     local removing, order = {}, {}
@@ -285,9 +334,14 @@ function installer.remove(names, cascade)
         i = i + 1
     end
 
-    -- Remove them
+    -- Remove them, noting the ones whose files were never tracked
+    local untracked = {}
     for _, name in ipairs(order) do
-        uninstall(assert(state.get(name)))
+        local record = assert(state.get(name))
+        if record.kind == "installer" then
+            untracked[#untracked + 1] = name
+        end
+        uninstall(record)
     end
 
     -- Remove dependencies that are no longer needed
@@ -295,7 +349,7 @@ function installer.remove(names, cascade)
         order[#order + 1] = name
     end
 
-    return order
+    return order, nil, untracked
 end
 
 return installer

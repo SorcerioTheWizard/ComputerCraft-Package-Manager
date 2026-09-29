@@ -3,6 +3,7 @@
 -- Tests for `ccpm.installer` through `ccpm.manager`.
 
 -- MARK: Imports
+local fakeHttp = require("support.fake_http")
 local fakeRegistry = require("support.fake_registry")
 local files = require("ccpm.files")
 local installer = require("ccpm.installer")
@@ -187,11 +188,63 @@ describe("installer", function()
         check.same(state.list(), {})
     end)
 
-    it("refuses kinds it cannot install yet", function()
-        served:add("script", "1.0.0", { kind = "installer" })
+    it("runs installers from the root folder and records them", function()
+        files.write("/sandbox-setup.lua", 'local f = fs.open(shell.resolve("sandbox-marker.txt"), "w") f.write(shell.dir()) f.close()')
+        served:add("ext/app", "2026.929.1", { command = "/sandbox-setup.lua" })
+        served:serve()
+        shell.setDir("sandbox")
+
+        check.same(install("ext/app"), {})
+        check.equals(shell.dir(), "sandbox")
+        check.equals(files.read("/sandbox-marker.txt"), "")
+        local record = assert(state.get("ext/app"))
+        check.equals(record.kind, "installer")
+        check.equals(record.command, "/sandbox-setup.lua")
+        check.same(record.files, {})
+
+        -- Leave its files in place when removed
+        local removed, _, untracked = manager.remove({ "ext/app" })
+        check.same(removed, { "ext/app" })
+        check.same(untracked, { "ext/app" })
+        check.truthy(fs.exists("/sandbox-marker.txt"))
+
+        shell.setDir("")
+        fs.delete("/sandbox-setup.lua")
+        fs.delete("/sandbox-marker.txt")
+    end)
+
+    it("records nothing when an installer fails", function()
+        served:add("ext/broken", "1.0.0", { command = "/sandbox-missing-installer.lua" })
         served:serve()
 
-        local _, err = install("script")
-        check.contains(err, "cannot install")
+        local removed, err = install("ext/broken")
+        check.equals(removed, nil)
+        check.contains(err, "its installer `/sandbox-missing-installer.lua` failed")
+        check.equals(state.get("ext/broken"), nil)
+    end)
+
+    it("lets external packages install single file libraries", function()
+        served:add("ext/pixel", "1.0.0", { files = { ["lib/pixel_lite.lua"] = "return {}" } })
+        served:add("native", "1.0.0", { files = { ["lib/pixel_lite.lua"] = "return {}" } })
+        served:serve()
+
+        check.same(install("ext/pixel"), {})
+        check.truthy(fs.exists("/sandbox/lib/pixel_lite.lua"))
+
+        local _, err = install("native")
+        check.contains(err, "outside the folders native may install to")
+    end)
+
+    it("reports installs to the source a package was synced from", function()
+        served:add("pinestore/radar", "1.0.0", { files = { ["bin/radar.lua"] = "print('radar')" }, origin = { source = "pinestore", id = "12", url = "https://pinestore.cc/projects/12/radar" } })
+        served:add("plain", "1.0.0")
+        served:serve()
+
+        check.same(install("pinestore/radar", "plain"), {})
+        local posts = fakeHttp.posts()
+        check.equals(#posts, 1)
+        check.equals(posts[1].url, "https://pinestore.cc/api/log/download")
+        check.same(textutils.unserializeJSON(posts[1].body), { projectId = "12" })
+        check.equals(posts[1].headers["Content-Type"], "application/json")
     end)
 end)
