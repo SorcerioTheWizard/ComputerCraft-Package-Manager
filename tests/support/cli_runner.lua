@@ -9,14 +9,21 @@ local ui = require("ccpm.ui")
 -- MARK: Functions
 local cliRunner = {}
 
---- Creates a fake shell that records path and completion changes.
+--- Creates a fake shell that records path and completion changes, and runs programs in its own environment like a real shell.
 ---@return table shellApi The fake shell.
 function cliRunner.fakeShell()
     local fake = { currentPath = ".:/rom/programs", completions = {}, runs = {} }
     fake.path = function() return fake.currentPath end
     fake.setPath = function(value) fake.currentPath = value end
     fake.setCompletionFunction = function(program, fn) fake.completions[program] = fn end
-    fake.run = function(...) fake.runs[#fake.runs + 1] = { ... } return true end
+    fake.run = function(program, ...)
+        fake.runs[#fake.runs + 1] = { program, ... }
+
+        -- Run the program with this shell and its own `package` table
+        local env = setmetatable({ shell = fake, package = { path = "" } }, { __index = _ENV })
+        local fn = fs.exists(program) and loadfile(program, nil, env)
+        return fn and pcall(fn, ...) or false
+    end
 
     return fake
 end

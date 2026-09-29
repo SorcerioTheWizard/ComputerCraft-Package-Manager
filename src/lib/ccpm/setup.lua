@@ -72,16 +72,9 @@ function setup.install(shellApi)
         settings.save()
     end
 
-    -- Apply the hook to this shell too
+    -- Run the hook in this shell too, so completion comes from the installed libraries rather than wherever this code was loaded from
     if shellApi then
-        local bin = paths.bin()
-        if not (":" .. shellApi.path() .. ":"):find(":" .. bin .. ":", 1, true) then
-            shellApi.setPath(shellApi.path() .. ":" .. bin)
-        end
-        local ok, completion = pcall(require, "ccpm.completion")
-        if ok then
-            shellApi.setCompletionFunction(fs.combine(paths.root(), PROGRAM), completion.complete)
-        end
+        shellApi.run(setup.hookPath())
     end
 end
 

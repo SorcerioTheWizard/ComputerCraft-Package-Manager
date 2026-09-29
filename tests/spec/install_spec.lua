@@ -68,6 +68,17 @@ describe("install.lua", function()
         check.equals(config.registries[1].url, fakeRegistry.URL)
     end)
 
+    it("leaves working tab completion in the shell it ran in", function()
+        shell.run(INSTALLER, fakeRegistry.URL)
+
+        -- Complete with the function registered after the temporary copy of CCPM was deleted
+        local info = shell.getCompletionInfo()["ccpm/bin/ccpm.lua"]
+        check.truthy(info, "no completion function was registered")
+        local ok, result = pcall(info.fnComplete, shell, 1, "inst", { "ccpm" })
+        check.truthy(ok, tostring(result))
+        check.same(result, { "all " })
+    end)
+
     it("upgrades an existing installation when run again", function()
         shell.run(INSTALLER, fakeRegistry.URL)
 

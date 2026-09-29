@@ -5,6 +5,7 @@
 - We use American English here.
 - We *are not* lazy developers. We implement things the *right* way based on informed and reasoned hypotheses. If something is beyond the explicit scope of a ticket but it is the correct answer, then it is the proper course of action.
 - We keep our code DRY and lean. If something is reused, it should be shared; not duplicated into multiple places.
+- If you encounter a bug, that's a reason for a test.
 
 ## Environment
 
