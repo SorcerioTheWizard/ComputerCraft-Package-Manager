@@ -1,3 +1,3 @@
 # Computer Craft Package Manager
 
-> A package manager for ComputerCraft and ComputerCraft: Tweaked.
+> The package manager for ComputerCraft and ComputerCraft: Tweaked.
