@@ -1,0 +1,29 @@
+# Docket configuration.
+# This file is hand-maintained. Comments and key order survive every write the tool makes.
+
+# Where tickets live, relative to this file.
+root = "docs/tickets"
+
+# Tickets with status todo or wip live here. Only done moves a file.
+todoDir = "todo"
+doneDir = "done"
+
+# Priority is an integer with 0 most urgent. New tickets get defaultPriority, and validate enforces the ceiling.
+defaultPriority = 2
+maxPriority = 4
+
+# How many nodes `docket docs roadmap` aims to draw. Past this it drops the completed tickets furthest from the work still open.
+# Set it to 0 for no ceiling, and remember that mermaid stops being readable well before a thousand nodes.
+maxRoadmapNodes = 200
+
+# How long, in seconds, one docket process waits for another to finish writing before giving up.
+# Writes are serialized across processes, so a CLI command and a running MCP server never overwrite each other.
+lockTimeout = 5.0
+
+# Keys group related work. A ticket id is <KEY>-<NUM>.
+# Add a key here with a short description of what it covers, or run `docket key add <KEY> "<DESCRIPTION>"`. A key must exist before tickets can use it.
+# An agent adds one through add_key, which it is told to do only after asking you first.
+[keys]
+FEAT = "A new feature to add to the ComputerCraft Package Manager."
+BUG = "A bug related to the functionality of the ComputerCraft Package Manager."
+SOC = "A task or research related to sharing the ComputerCraft Package Manager across social media and beyond."

@@ -1,3 +1,6 @@
 .vscode/
 .claude/
 repo/demo_original.gif
+
+# Docket's cross-process lock. Machine state, never committed.
+.docket.lock*

@@ -1,0 +1,133 @@
+# Tickets
+
+This directory is managed by `docket`. Read this before touching anything in it.
+
+## What a ticket is
+
+A markdown file with a YAML frontmatter block.
+
+```markdown
+---
+id: CORE-14
+title: Skirmish Setup
+status: todo
+priority: 1
+requires: [CORE-9, GEN-3]
+---
+
+# Skirmish Setup
+
+Prose, unparsed and unconstrained.
+```
+
+| Field | Meaning |
+|---|---|
+| `id` | `<KEY>-<NUM>`. Allocated at creation. Never change it. |
+| `title` | Free text, converted to title case on write. May change. The filename does not follow it. |
+| `status` | `todo`, `wip`, or `done`. Nothing else is valid. |
+| `priority` | Integer, `0` most urgent. |
+| `requires` | Ids this ticket depends on. May be empty. |
+| `metadata` | Free-form `{key: value}` map for any tool or skill to attach data to. Namespace your key so it cannot collide with another consumer's. |
+
+Any other field is preserved untouched, so this repository may add its own.
+
+Everything below the frontmatter is yours. No tool parses it.
+
+## The body is yours. The frontmatter is not.
+
+A ticket file has two halves, and they have different rules.
+
+**The body, everything below the closing `---`, is yours to edit directly.** Rewrite it, extend it, restructure it, correct it. No tool parses it and no tool will overwrite it. There is no MCP tool for editing a body, because editing it in place is the intended way. Do that freely and often, especially to record something you just worked out.
+
+**The frontmatter block, and where the file lives, belong to the tool.** Do not hand-edit those fields, and do not create, move, rename, or delete ticket files yourself.
+
+| Want to change | Do this |
+|---|---|
+| The prose in the body | Edit the file directly |
+| `title`, `priority`, `requires` | `update_ticket` |
+| one `metadata` entry | `set_metadata` |
+| `status` | `set_status` |
+| Nothing, you just want to read it | `read_ticket` |
+
+Never move a file between `todo/` and `done/` yourself. The `status` field is the truth and the directory is a projection of it. `set_status` writes both together, and it is the only thing that does. A file moved by hand leaves the two disagreeing, and `validate` will report it as an error.
+
+Filenames are frozen at creation. Retitling a ticket deliberately does not rename its file, because renaming would break every prose cross-reference pointing at it from other tickets. Do not rename one to "fix" a stale slug. It is stale on purpose.
+
+## Tickets written outside this repository
+
+Docket ships a second document, written by `docket docs handoff`, for a chat system that has no access to this repository and has to write ticket files by hand.
+
+Its rules are deliberately the opposite of the ones above, because its reader has no tools to call. Do not follow it here. A file produced that way is an ordinary ticket the moment it lands, so `validate` is what confirms it and the tools above are what change it afterwards.
+
+## Titles are title case
+
+`create_ticket` and `update_ticket` convert the `title` for you, so write one however reads naturally and let the tool case it. Do not hand-edit a title in the frontmatter to fix its casing, because that is a frontmatter field and `update_ticket` owns it.
+
+A word carrying an uppercase letter past its first character, or a digit anywhere, is left exactly as you wrote it. That is what keeps `CLI`, `MCPServer`, `FEAT-5`, and `2.x` intact, so spell an acronym in caps when you mean one.
+
+`validate` warns about any title that does not match, naming the corrected form. Those are worth fixing through `update_ticket` when you see them.
+
+## The rest of the tools
+
+| To do this | Call this |
+|---|---|
+| See what exists | `list_tickets` |
+| Read one ticket in full | `read_ticket` |
+| Check a ticket can be worked on | `check_ready` |
+| Create a ticket | `create_ticket` |
+| See the dependency graph | `graph` |
+| See valid keys | `list_keys` |
+| Add a new key | `add_key`, after asking the user |
+| Check the set is sound | `validate` |
+
+## The committed roadmap
+
+This repository may keep a `roadmap.md`, which is the dependency graph as a diagram a reader can open on the repository page. It is generated, so never edit it by hand. Regenerate it with `docket docs roadmap` from a terminal, which is a command rather than a tool because it writes a file outside the ticket directories.
+
+The `graph` tool is what you call to see the same graph for yourself. It is the roadmap without the wrapper, and calling it changes nothing.
+
+## Dependencies point one way
+
+A ticket declares what it `requires`. It never declares what it blocks.
+
+The reverse direction is derived, not stored. `read_ticket` returns both, so to find out what a ticket is blocking, read it and look at `requiredBy`. Do not add a "blocks" field. Storing both directions guarantees they eventually disagree, which is exactly what this design exists to prevent.
+
+Whether a ticket is ready to be worked on is derived the same way. Call `check_ready` rather than listing statuses and deciding for yourself, so that every caller gets the same answer from the same rule. Ready means every id in `requires` names a ticket that is `done`, a missing dependency blocks, and a ticket that is already `done` is never ready.
+
+To change one edge, use `update_ticket` with `requires_add` or `requires_remove` rather than reading the list and passing it back with one entry different. Those edit the list in place, so nothing you did not name is at risk. Reserve `requires` for when you genuinely mean to replace the whole list, and never pass it in the same call as an edit, which is refused.
+
+## Keys are closed
+
+A ticket's key is the part before the hyphen. It groups related work.
+
+Keys must be registered before use. `create_ticket` refuses an unregistered one, which is what stops a typo silently spawning an orphan group.
+
+Call `list_keys` before creating a ticket rather than guessing.
+
+**When no existing key fits, ask the user before adding one.** Use `AskUserQuestion`. Name the key you have in mind, say what it would group, and say why the existing keys do not cover the work. Offer the closest existing key as an alternative option, because most of the time that is the right answer.
+
+Only once the user has agreed, call `add_key` with the key, a description, and the rationale they just gave you. Never call it on your own judgement. How this repository is carved up is the user's decision, and a key added without asking is a structural change nobody signed off on.
+
+If you are mid-batch and the user is not there to answer, use the closest existing key and say so in the ticket body. Do not stall the batch, and do not invent a key.
+
+## Write tickets for a reader who was not there
+
+This is the part that matters most.
+
+A ticket is read weeks later by someone, or something, with none of the context you have right now. Put that context in the ticket.
+
+Include the architecture that was discussed, the assumptions being made, and the questions that were already asked and answered. State them plainly in the body, where a new reader will see them. A ticket that only makes sense to whoever was in the conversation is a ticket that will be redone from scratch.
+
+## If a call reports the repository is locked
+
+Another process was writing to this repository and did not finish in time.
+
+Nothing was changed when that error is raised, so retry the same call once. If it happens repeatedly, tell the user rather than retrying in a loop, because something is holding the repository open.
+
+## After writing a batch
+
+Call `validate`.
+
+A `requires` entry naming a ticket that does not exist yet is only a warning at creation time, so that writing a batch out of order does not strand you halfway. It becomes an error in `validate`. Run it when the batch is done and resolve what it reports.
+
+`validate` reports warnings of its own too, which do not block. Read them rather than skipping to the error count.
