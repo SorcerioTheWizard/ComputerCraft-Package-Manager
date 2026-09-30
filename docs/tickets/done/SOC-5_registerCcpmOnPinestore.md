@@ -1,7 +1,7 @@
 ---
 id: SOC-5
 title: Register CCPM on Pinestore
-status: todo
+status: done
 priority: 2
 requires: []
 metadata: {}
