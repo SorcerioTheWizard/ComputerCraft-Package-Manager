@@ -1,7 +1,7 @@
 ---
 id: SOC-2
 title: Record a Demo Video
-status: todo
+status: done
 priority: 2
 requires: []
 metadata: {}
