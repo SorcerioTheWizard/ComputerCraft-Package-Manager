@@ -21,4 +21,4 @@
 
 - [ ] Follows the code style in `CLAUDE.md`
 - [ ] The README and `CLAUDE.md` are updated where behavior or structure changed
-- [ ] Keeps the public contracts in `CONTRIBUTING.md`: the installer URL, the `require("ccpm")` API, and the version range syntax
+- [ ] Keeps the public contracts in `CONTRIBUTING.md`: the installer URL, the `require("/ccpm/lib/ccpm")` API, and the version range syntax

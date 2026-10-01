@@ -20,10 +20,10 @@ Documentation for ComputerCraft: Tweaked is found [here](https://tweaked.cc).
 The source tree mirrors where files are installed on a computer:
 
 - `src/bin/` is installed to `/ccpm/bin/`, which is added to the shell path.
-- `src/lib/` is installed to `/ccpm/lib/`, which is added to the `require` path. Modules are required as `ccpm.<module>`.
+- `src/lib/` is installed to `/ccpm/lib/`. Modules are required as `ccpm.<module>`. CC: Tweaked never searches `/ccpm/lib` itself, so `init.lua` adds it to the calling program's `require` path, which is why programs load CCPM with `require("/ccpm/lib/ccpm")`.
 - `/startup/00_ccpm.lua` is not shipped as a file. `ccpm setup` generates it (see `src/lib/ccpm/setup.lua`), because packages may only install into `bin/`, `lib/<name>/`, and `share/<name>/`.
 - `install.lua` is the bootstrap installer. Its URL on `master` is public and must never move.
-- `src/lib/ccpm/init.lua` is what programs get from `require("ccpm")`. It is a public API documented in the README: add to it freely, but never remove or change the behavior of existing functions. The bootstrap snippet in the README is public too and relies on `/ccpm/lib/ccpm/init.lua` existing.
+- `src/lib/ccpm/init.lua` is what programs get from `require("/ccpm/lib/ccpm")`. It is a public API documented in the README: add to it freely, but never remove or change the behavior of existing functions. The bootstrap snippet in the README is public too and relies on `/ccpm/lib/ccpm/init.lua` existing.
 - Every other `ccpm.*` module is internal and may change at any time, even though programs could technically `require` it.
 - All output goes through `src/lib/ccpm/ui.lua`. Commands say what to show with roles (`name`, `text`, `dim`, `faint`, `good`, `bad`, `caution`), never raw colors, and never wrap text themselves. `ui.lua` knows nothing about packages, so it can become its own package later.
 - `types/` holds type stubs for the Lua language server. It is never installed; add ComputerCraft APIs there when the editor flags them as undefined.
@@ -38,6 +38,7 @@ Specs live in `tests/spec/` as `<name>_spec.lua` and run inside a throwaway head
 - Set `CRAFTOS` to the CraftOS-PC console executable when `craftos` is not on the `PATH` (on this machine: `D:\AppData\CraftOS-PC\CraftOS-PC_console.exe`).
 - Specs use the globals `describe`, `it`, `beforeEach`, `afterEach`, and `check` from `tests/harness.lua`.
 - Never let a spec touch the network. Use the fakes in `tests/support/`.
+- CraftOS-PC's ROM is a modified copy of CC: Tweaked's, with extras like the `shell.package_path` setting that real servers do not have. Check behavior that depends on the ROM against [CC: Tweaked's own ROM source](https://github.com/cc-tweaked/CC-Tweaked/tree/mc-1.20.x/projects/core/src/main/resources/data/computercraft/lua/rom), not only CraftOS-PC.
 
 ### Python
 

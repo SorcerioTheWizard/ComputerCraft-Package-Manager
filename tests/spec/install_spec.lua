@@ -29,8 +29,6 @@ end
 local function cleanUp()
     fs.delete(ROOT)
     fs.delete(HOOK)
-    settings.unset("shell.package_path")
-    settings.save()
     fakeHttp.restore()
 end
 
@@ -60,7 +58,6 @@ describe("install.lua", function()
 
         -- Check the computer
         check.truthy(fs.exists(HOOK))
-        check.contains(settings.get("shell.package_path"), "/ccpm/lib/?.lua")
         check.falsy(fs.exists("/.ccpm-install"))
 
         -- Check it remembers the registry it came from

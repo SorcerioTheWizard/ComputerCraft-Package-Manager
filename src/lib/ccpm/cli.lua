@@ -545,11 +545,6 @@ COMMANDS[#COMMANDS + 1] = {
         else
             fail("boot hook is missing or outdated; run `ccpm setup`")
         end
-        if setup.isPackagePathConfigured() then
-            report("ok", "installed libraries can be required")
-        else
-            fail("installed libraries cannot be required; run `ccpm setup`")
-        end
 
         -- Check every installed package
         local records = state.list()
@@ -600,7 +595,7 @@ COMMANDS[#COMMANDS + 1] = {
     flags = {},
     run = function(_, _, shellApi)
         setup.install(shellApi)
-        ui.success("CCPM is set up. Installed programs can be run by name and installed libraries can be required.")
+        ui.success("CCPM is set up. Installed programs can be run by name.")
         return true
     end,
 }

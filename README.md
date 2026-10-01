@@ -26,7 +26,7 @@ CCPM installs, updates, and removes programs and libraries on ComputerCraft comp
 - Dependencies are resolved automatically, with version ranges like `^1.2.0`, and backtracking when the newest versions do not fit together.
 - Every file is downloaded, and checked against its published hash when it has one, before anything is written, so a failed or tampered download never leaves a computer half installed.
 - Packages declare which ComputerCraft and Minecraft versions they work on, and CCPM checks them against the computer it runs on.
-- Installed programs run by name from anywhere, and installed libraries can be required from any program.
+- Installed programs run by name from anywhere, and any program can load installed libraries after one line, `require("/ccpm/lib/ccpm")`.
 - Programs can install what they need themselves with `ccpm.requires`.
 - Door locks and kiosks can block Ctrl+T and start at boot without replacing `startup.lua`.
 - The [Pinestore](https://pinestore.cc) catalog is mirrored daily, so its projects install with the same commands.
@@ -39,7 +39,7 @@ Run this on any ComputerCraft computer:
 wget run https://raw.githubusercontent.com/SorcerioTheWizard/ComputerCraft-Package-Manager/master/install.lua
 ```
 
-The installer downloads CCPM from the [registry](https://github.com/SorcerioTheWizard/CCPM-Registry), checks every file against its published hash, and sets the computer up so installed programs run by name and installed libraries can be required from anywhere.
+The installer downloads CCPM from the [registry](https://github.com/SorcerioTheWizard/CCPM-Registry), checks every file against its published hash, and sets the computer up so installed programs run by name from anywhere.
 Run it again at any time to update or repair CCPM.
 
 To install from a different registry, pass its URL: `wget run <installer URL> <registry URL>`.
@@ -87,7 +87,10 @@ Projects from [Pinestore](https://pinestore.cc) are mirrored into the registry e
 
 ## Using CCPM in Your Programs
 
-Programs can load the packages they need with `require("ccpm")`.
+Programs load CCPM with `local ccpm = require("/ccpm/lib/ccpm")`.
+The full path matters: CC: Tweaked only searches a program's own folder and its ROM for libraries, so a plain `require("ccpm")` cannot find CCPM.
+Loading CCPM also lets the program `require` any installed library by name afterwards.
+
 Paste this at the top of a program to also install CCPM on computers that do not have it yet:
 
 ```lua
@@ -95,8 +98,7 @@ Paste this at the top of a program to also install CCPM on computers that do not
 if not fs.exists("/ccpm/lib/ccpm/init.lua") then
     shell.run("wget", "run", "https://raw.githubusercontent.com/SorcerioTheWizard/ComputerCraft-Package-Manager/master/install.lua")
 end
-package.path = "/ccpm/lib/?.lua;/ccpm/lib/?/init.lua;" .. package.path
-local ccpm = require("ccpm")
+local ccpm = require("/ccpm/lib/ccpm")
 ```
 
 Then declare what the program needs where you would call `require`:
@@ -138,7 +140,7 @@ Everything CCPM installs lives in `/ccpm` on the computer:
 | Folder         | Holds                                                                            |
 | -------------- | -------------------------------------------------------------------------------- |
 | `/ccpm/bin`    | Programs, which run by name from anywhere.                                       |
-| `/ccpm/lib`    | Libraries, which any program can `require`.                                      |
+| `/ccpm/lib`    | Libraries, which programs `require` after loading CCPM.                          |
 | `/ccpm/share`  | Read-only assets packages ship with.                                             |
 | `/ccpm/data`   | Programs' own settings and saves.                                                |
 | `/ccpm/pkg`    | One record per installed package, listing the files it owns.                     |

@@ -1,25 +1,40 @@
 -- CCPM Library
 --
--- What programs get from `require("ccpm")`: installable requirements, package folders, and helpers for kiosk computers.
-
--- MARK: Imports
--- Modules load in the environment of the program that requires them, so `package` and `require` here are the caller's
-local paths = require("ccpm.paths")
+-- What programs get from `require("/ccpm/lib/ccpm")`: installable requirements, package folders, and helpers for kiosk computers.
 
 -- MARK: Constants
 local NAME_PATTERN = "^[%w_%-]+$"
+local DEFAULT_LIB = "/ccpm/lib"
+
+-- MARK: Setup
+-- Modules load in the environment of the program that requires them, so `package` and `require` here are the caller's.
+-- CC: Tweaked never searches `/ccpm/lib` by itself, so add the folder this module was loaded from before requiring anything else.
+local _, loadedFrom = ...
+local libDir = type(loadedFrom) == "string" and loadedFrom:match("^(.*)/ccpm/init%.lua$") or DEFAULT_LIB
+libDir = "/" .. fs.combine(libDir, "")
+
+--- Adds a library folder to the calling program's `require` path.
+---@param dir string The absolute library folder.
+local function addLibraryPath(dir)
+    local patterns = dir .. "/?.lua;" .. dir .. "/?/init.lua"
+    if not package.path:find(patterns, 1, true) then
+        package.path = patterns .. ";" .. package.path
+    end
+end
+
+addLibraryPath(libDir)
+
+-- MARK: Imports
+local paths = require("ccpm.paths")
 
 -- MARK: State
 -- The real `os.pullEvent`, saved while terminating is blocked
 local savedPullEvent = nil
 
 -- MARK: Private Functions
---- Lets the calling program require installed libraries, even when `ccpm setup` has not run.
+--- Lets the calling program require installed libraries.
 local function ensureLibraryPath()
-    local patterns = paths.join(paths.lib(), "?.lua") .. ";" .. paths.join(paths.lib(), "?/init.lua")
-    if not package.path:find(patterns, 1, true) then
-        package.path = package.path .. ";" .. patterns
-    end
+    addLibraryPath(paths.lib())
 end
 
 --- Finds the library module an installed package provides, which differs from the package name for packages synced from other catalogs.

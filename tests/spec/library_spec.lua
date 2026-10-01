@@ -1,6 +1,6 @@
 -- CCPM Library Spec
 --
--- Tests for what programs get from `require("ccpm")`.
+-- Tests for what programs get from `require("/ccpm/lib/ccpm")`.
 
 -- MARK: Imports
 local ccpm = require("ccpm")
@@ -136,6 +136,30 @@ describe("ccpm folders and versions", function()
 
     it("lets the calling program require installed libraries", function()
         check.contains(package.path, "/ccpm/lib/?.lua")
+    end)
+end)
+
+describe("loading ccpm on CC: Tweaked", function()
+    sandbox.use()
+
+    it("loads by absolute path with CC: Tweaked's default require path, then finds installed libraries", function()
+        -- Install CCPM's libraries and a library package where a computer would have them
+        fs.copy("/src/lib/ccpm", "/sandbox/lib/ccpm")
+        files.write("/sandbox/lib/pixel.lua", "return { name = 'pixel' }")
+
+        -- Build a program environment the way CC: Tweaked's shell does, with its fixed default path
+        local env = setmetatable({}, { __index = _ENV })
+        env.require, env.package = require("cc.require").make(env, "/somewhere")
+        env.package.path = "?;?.lua;?/init.lua;/rom/modules/main/?;/rom/modules/main/?.lua;/rom/modules/main/?/init.lua"
+
+        -- Plain names fail, like they do on a real server
+        check.falsy(pcall(env.require, "ccpm"))
+
+        -- The absolute path works, and makes installed libraries requirable
+        local ok, loaded = pcall(env.require, "/sandbox/lib/ccpm")
+        check.truthy(ok, tostring(loaded))
+        check.equals(type(loaded.requires), "function")
+        check.equals(env.require("pixel").name, "pixel")
     end)
 end)
 

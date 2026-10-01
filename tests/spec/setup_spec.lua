@@ -18,17 +18,14 @@ describe("setup", function()
         setup.uninstall()
     end)
 
-    it("installs the hook and the require path once", function()
+    it("installs the hook once and leaves settings alone", function()
         local fakeShell = cliRunner.fakeShell()
         setup.install(fakeShell)
         setup.install(fakeShell)
 
         -- Check the computer
         check.truthy(setup.isHookInstalled())
-        check.truthy(setup.isPackagePathConfigured())
-        local packagePath = settings.get("shell.package_path")
-        local _, count = packagePath:gsub("/sandbox/lib/%?%.lua", "")
-        check.equals(count, 1)
+        check.falsy((settings.get("shell.package_path") or ""):find("/sandbox/lib", 1, true))
 
         -- Check the running shell
         check.equals(fakeShell.currentPath, ".:/rom/programs:/sandbox/bin")
@@ -55,7 +52,6 @@ describe("setup", function()
         setup.uninstall()
 
         check.falsy(fs.exists(setup.hookPath()))
-        check.falsy(setup.isPackagePathConfigured())
     end)
 
     it("notices an outdated hook", function()
